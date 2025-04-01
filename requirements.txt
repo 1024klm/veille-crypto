@@ -1,0 +1,8 @@
+selenium==4.18.1
+webdriver-manager==4.0.1
+python-dotenv==1.0.0
+transformers==4.36.2
+torch==2.3.0
+pandas==2.1.4
+nltk==3.8.1
+fake-useragent==1.4.0 
