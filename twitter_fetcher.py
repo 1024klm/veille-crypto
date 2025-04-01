@@ -1,5 +1,6 @@
 import time
 import random
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from selenium import webdriver
@@ -30,22 +31,38 @@ class TwitterFetcher:
         
     def setup_driver(self):
         """Configure et initialise le webdriver Chrome avec des options optimisées."""
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')  # Mode sans interface graphique
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument(f'user-agent={UserAgent().random}')
-        
-        # Désactivation des images pour accélérer le chargement
-        prefs = {
-            "profile.managed_default_content_settings.images": 2
-        }
-        chrome_options.add_experimental_option("prefs", prefs)
-        
-        # Initialisation du driver
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.driver.implicitly_wait(10)  # Attente implicite de 10 secondes
+        try:
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')  # Mode sans interface graphique
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument(f'user-agent={UserAgent().random}')
+            
+            # Désactivation des images pour accélérer le chargement
+            prefs = {
+                "profile.managed_default_content_settings.images": 2
+            }
+            chrome_options.add_experimental_option("prefs", prefs)
+            
+            # Installation et configuration du ChromeDriver
+            driver_path = ChromeDriverManager().install()
+            logger.info(f"ChromeDriver installé à : {driver_path}")
+            
+            # Vérification que le fichier est exécutable
+            if not os.access(driver_path, os.X_OK):
+                logger.error(f"Le ChromeDriver à {driver_path} n'est pas exécutable")
+                raise PermissionError(f"ChromeDriver non exécutable : {driver_path}")
+            
+            # Initialisation du service et du driver
+            service = Service(executable_path=driver_path)
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            self.driver.implicitly_wait(10)  # Attente implicite de 10 secondes
+            
+            logger.info("WebDriver initialisé avec succès")
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'initialisation du WebDriver : {str(e)}")
+            raise
         
     def login(self):
         """Se connecte à Twitter avec les identifiants fournis."""
