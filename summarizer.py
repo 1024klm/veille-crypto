@@ -3,6 +3,9 @@ import nltk
 from collections import Counter
 import config
 import logging
+import time
+from nltk.tokenize import sent_tokenize
+from datetime import datetime, timedelta
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,42 +17,102 @@ class TweetSummarizer:
             nltk.data.find('tokenizers/punkt')
         except LookupError:
             nltk.download('punkt')
+        # Cache pour les résumés avec TTL
+        self._cache = {}
+        self._cache_timeout = 3600  # 1 heure
+        self._cache_cleanup_interval = 300  # 5 minutes
+        self._last_cleanup = time.time()
+        self.logger = logging.getLogger(__name__)
+
+    def _cleanup_cache(self):
+        """Nettoie les entrées expirées du cache."""
+        current_time = time.time()
+        if current_time - self._last_cleanup > self._cache_cleanup_interval:
+            expired_keys = []
+            for key, (_, timestamp) in self._cache.items():
+                if current_time - timestamp > self._cache_timeout:
+                    expired_keys.append(key)
+            for key in expired_keys:
+                del self._cache[key]
+            self._last_cleanup = current_time
 
     def analyze_tweets(self, tweets: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Analyse un ensemble de tweets pour en extraire les informations clés."""
+        """Analyse une liste de tweets pour générer un résumé."""
+        # Nettoyage du cache
+        self._cleanup_cache()
+        
+        # Vérification du cache
+        cache_key = hash(str(tweets))
+        if cache_key in self._cache:
+            cached_result, timestamp = self._cache[cache_key]
+            if time.time() - timestamp < self._cache_timeout:
+                return cached_result
+
         if not tweets:
             return {
-                'summary': "Aucun tweet récent trouvé.",
+                'summary': "Aucun tweet disponible pour la période.",
                 'hashtags': [],
-                'engagement': 0
+                'engagement': 0.0,
+                'themes': []
             }
 
-        # Extraction des hashtags
-        all_hashtags = []
+        # Préparation des données
+        texts = []
+        hashtags = []
+        total_engagement = 0
+        tweet_count = 0
+
         for tweet in tweets:
-            all_hashtags.extend(tweet.get('hashtags', []))
-        
-        # Calcul des hashtags les plus fréquents
-        hashtag_counter = Counter(all_hashtags)
-        top_hashtags = [tag for tag, _ in hashtag_counter.most_common(config.MAX_HASHTAGS)]
+            texts.append(tweet['text'])
+            hashtags.extend(tweet['hashtags'])
+            
+            # Calcul de l'engagement en prenant en compte les différents formats possibles
+            metrics = tweet['metrics']
+            likes = metrics.get('like', metrics.get('like_count', 0))
+            retweets = metrics.get('retweet', metrics.get('retweet_count', 0))
+            replies = metrics.get('reply', metrics.get('reply_count', 0))
+            
+            tweet_engagement = likes + retweets + replies
+            total_engagement += tweet_engagement
+            tweet_count += 1
 
         # Calcul de l'engagement moyen
-        total_engagement = sum(
-            tweet['metrics']['like_count'] + 
-            tweet['metrics']['retweet_count'] + 
-            tweet['metrics']['reply_count']
-            for tweet in tweets
-        )
-        avg_engagement = total_engagement / len(tweets) if tweets else 0
+        avg_engagement = total_engagement / max(tweet_count, 1)
+
+        # Analyse des hashtags les plus fréquents
+        hashtag_counter = Counter(hashtags)
+        top_hashtags = [tag for tag, _ in hashtag_counter.most_common(5)]
+
+        # Extraction des thèmes
+        themes = self._extract_themes(tweets)
 
         # Génération du résumé
-        summary = self._generate_summary(tweets, top_hashtags, avg_engagement)
+        if len(texts) == 1:
+            summary = texts[0]
+        else:
+            # Tokenisation des phrases
+            all_sentences = []
+            for text in texts:
+                sentences = sent_tokenize(text)
+                all_sentences.extend(sentences)
 
-        return {
+            if not all_sentences:
+                summary = "Pas de contenu textuel disponible dans les tweets."
+            else:
+                # Sélection des phrases les plus pertinentes
+                summary = " ".join(all_sentences[:3])
+
+        result = {
             'summary': summary,
             'hashtags': top_hashtags,
-            'engagement': round(avg_engagement, 2)
+            'engagement': round(avg_engagement, 2),
+            'themes': themes
         }
+
+        # Mise en cache du résultat
+        self._cache[cache_key] = (result, time.time())
+
+        return result
 
     def _generate_summary(self, tweets: List[Dict[str, Any]], top_hashtags: List[str], avg_engagement: float) -> str:
         """Génère un résumé intelligent des tweets."""
@@ -73,30 +136,22 @@ class TweetSummarizer:
 
     def _extract_themes(self, tweets: List[Dict[str, Any]]) -> List[str]:
         """Extrait les thèmes principaux des tweets."""
-        # Mots-clés crypto courants
-        crypto_keywords = {
-            'bitcoin': 'Bitcoin',
-            'btc': 'Bitcoin',
-            'eth': 'Ethereum',
-            'ethereum': 'Ethereum',
-            'defi': 'DeFi',
-            'nft': 'NFT',
-            'web3': 'Web3',
-            'blockchain': 'Blockchain',
-            'mining': 'Mining',
-            'trading': 'Trading',
-            'altcoin': 'Altcoins',
-            'stablecoin': 'Stablecoins'
+        themes = set()
+        keywords = {
+            'Bitcoin': ['bitcoin', 'btc', 'satoshi'],
+            'Ethereum': ['ethereum', 'eth', 'vitalik'],
+            'DeFi': ['defi', 'yield', 'liquidity', 'swap'],
+            'NFT': ['nft', 'opensea', 'collection'],
+            'Regulation': ['sec', 'regulation', 'compliance']
         }
 
-        themes = []
         for tweet in tweets:
             text = tweet['text'].lower()
-            for keyword, theme in crypto_keywords.items():
-                if keyword in text and theme not in themes:
-                    themes.append(theme)
+            for theme, words in keywords.items():
+                if any(word in text for word in words):
+                    themes.add(theme)
 
-        return themes[:5]  # Limite à 5 thèmes principaux
+        return list(themes)
 
     def summarize_all_accounts(self, all_tweets: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Dict[str, Any]]:
         """Génère des résumés pour tous les comptes."""
