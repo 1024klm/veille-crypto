@@ -1,8 +1,17 @@
-import tweepy
-import logging
+import time
+import random
+import os
 from typing import List, Dict, Any
 from datetime import datetime
-import os
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from webdriver_manager.chrome import ChromeDriverManager
+import logging
 from dotenv import load_dotenv
 import config
 
@@ -12,89 +21,198 @@ logger = logging.getLogger(__name__)
 
 class TwitterFetcher:
     def __init__(self):
-        """Initialise le fetcher avec les clés API Twitter."""
+        """Initialise le fetcher avec les configurations nécessaires."""
         load_dotenv()
+        self.username = os.getenv('TWITTER_USERNAME')
+        self.password = os.getenv('TWITTER_PASSWORD')
+        self.driver = None
+        self.setup_driver()
         
-        # Récupération des clés API depuis les variables d'environnement
-        self.api_key = os.getenv('TWITTER_API_KEY')
-        self.api_secret = os.getenv('TWITTER_API_SECRET')
-        self.access_token = os.getenv('TWITTER_ACCESS_TOKEN')
-        self.access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-        self.bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
+    def setup_driver(self):
+        """Configure et initialise le WebDriver Chrome."""
+        try:
+            chrome_options = Options()
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--disable-images')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            
+            driver_path = ChromeDriverManager().install()
+            service = Service(executable_path=driver_path)
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            self.driver.implicitly_wait(10)
+            logger.info("WebDriver initialisé avec succès")
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'initialisation du WebDriver : {str(e)}")
+            raise
         
-        # Vérification des clés API
-        if not all([self.api_key, self.api_secret, self.access_token, self.access_token_secret, self.bearer_token]):
-            logger.error("Clés API Twitter manquantes dans le fichier .env")
-            raise ValueError("Clés API Twitter manquantes")
+    def login(self):
+        """Se connecte à Twitter."""
+        try:
+            self.driver.get('https://twitter.com/login')
+            time.sleep(2)
+            
+            # Entrée du nom d'utilisateur
+            username_input = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[autocomplete="username"]'))
+            )
+            username_input.clear()
+            username_input.send_keys(self.username)
+            
+            # Attente et clic sur le bouton Next
+            next_button = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//span[text()="Next"]'))
+            )
+            next_button.click()
+            time.sleep(2)
+            
+            # Entrée du mot de passe
+            password_input = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'input[name="password"]'))
+            )
+            password_input.clear()
+            password_input.send_keys(self.password)
+            
+            # Attente et clic sur le bouton Log in
+            login_button = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//span[text()="Log in"]'))
+            )
+            login_button.click()
+            time.sleep(3)
+            
+            # Vérification de la connexion
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="SideNav_AccountSwitcher_Button"]'))
+                )
+                logger.info("Connexion à Twitter réussie")
+            except TimeoutException:
+                logger.error("Échec de la connexion à Twitter")
+                raise
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la connexion à Twitter : {str(e)}")
+            raise
         
-        # Initialisation du client Twitter
-        self.client = tweepy.Client(
-            bearer_token=self.bearer_token,
-            consumer_key=self.api_key,
-            consumer_secret=self.api_secret,
-            access_token=self.access_token,
-            access_token_secret=self.access_token_secret
-        )
+    def scroll_page(self, max_tweets=10):
+        """Scroll de la page pour charger plus de tweets."""
+        tweets = set()
+        last_height = self.driver.execute_script("return document.body.scrollHeight")
+        attempts = 0
         
-        logger.info("Client Twitter initialisé avec succès")
-    
+        while len(tweets) < max_tweets and attempts < 15:
+            try:
+                # Scroll avec une position aléatoire pour éviter la détection
+                scroll_position = last_height - random.randint(100, 500)
+                self.driver.execute_script(f"window.scrollTo(0, {scroll_position});")
+                time.sleep(1)
+                
+                # Récupération des tweets
+                new_tweets = self.driver.find_elements(By.CSS_SELECTOR, 'article[data-testid="tweet"]')
+                if len(new_tweets) > len(tweets):
+                    tweets = set(new_tweets)
+                    last_height = self.driver.execute_script("return document.body.scrollHeight")
+                
+                attempts += 1
+                
+            except Exception as e:
+                logger.warning(f"Erreur lors du scroll : {str(e)}")
+                break
+        
+        return list(tweets)[:max_tweets]
+
+    def extract_tweet_data(self, tweet_element):
+        """Extrait les données d'un tweet."""
+        try:
+            # Extraction du texte
+            text_element = tweet_element.find_element(By.CSS_SELECTOR, '[data-testid="tweetText"]')
+            text = text_element.text
+            
+            # Extraction de la date
+            date_element = tweet_element.find_element(By.TAG_NAME, 'time')
+            date = date_element.get_attribute('datetime')
+            
+            # Extraction des métriques
+            metrics = {}
+            metrics_elements = tweet_element.find_elements(By.CSS_SELECTOR, '[data-testid$="-count"]')
+            for element in metrics_elements:
+                metric_type = element.get_attribute('data-testid').replace('-count', '')
+                count = element.text
+                count = int(count.replace('K', '000').replace('M', '000000')) if count else 0
+                metrics[metric_type] = count
+            
+            # Extraction des hashtags
+            hashtags = [tag.text for tag in tweet_element.find_elements(By.CSS_SELECTOR, 'a[href^="/hashtag/"]')]
+            
+            return {
+                'text': text,
+                'date': date,
+                'metrics': metrics,
+                'hashtags': hashtags
+            }
+            
+        except Exception as e:
+            logger.warning(f"Erreur lors de l'extraction des données du tweet : {str(e)}")
+            return None
+            
     def fetch_account_tweets(self, account: str, max_tweets: int = 10) -> List[Dict[str, Any]]:
         """Récupère les tweets d'un compte Twitter."""
         try:
             logger.info(f"Récupération des tweets de @{account}...")
             
-            # Récupération des tweets
-            tweets = self.client.get_user_tweets(
-                username=account,
-                max_results=max_tweets,
-                tweet_fields=['created_at', 'public_metrics', 'entities']
-            )
+            # Chargement de la page
+            self.driver.get(f"https://twitter.com/{account}")
+            time.sleep(2)
             
-            if not tweets.data:
-                logger.warning(f"Aucun tweet trouvé pour @{account}")
+            # Attente du chargement initial
+            try:
+                WebDriverWait(self.driver, 15).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, 'article[data-testid="tweet"]'))
+                )
+            except TimeoutException:
+                logger.warning(f"Timeout lors du chargement des tweets de {account}")
                 return []
             
-            # Normalisation des données
-            normalized_tweets = []
-            for tweet in tweets.data:
-                # Extraction des hashtags
-                hashtags = []
-                if hasattr(tweet, 'entities') and 'hashtags' in tweet.entities:
-                    hashtags = [tag['tag'] for tag in tweet.entities['hashtags']]
-                
-                # Création du tweet normalisé
-                normalized_tweet = {
-                    'text': tweet.text,
-                    'date': tweet.created_at.isoformat(),
-                    'metrics': {
-                        'retweet_count': tweet.public_metrics['retweet_count'],
-                        'reply_count': tweet.public_metrics['reply_count'],
-                        'like_count': tweet.public_metrics['like_count'],
-                        'quote_count': tweet.public_metrics['quote_count']
-                    },
-                    'hashtags': hashtags
-                }
-                normalized_tweets.append(normalized_tweet)
+            # Récupération des tweets
+            tweet_elements = self.scroll_page(max_tweets)
+            tweets = []
             
-            logger.info(f"{len(normalized_tweets)} tweets récupérés pour @{account}")
-            return normalized_tweets
+            for tweet_element in tweet_elements:
+                tweet_data = self.extract_tweet_data(tweet_element)
+                if tweet_data:
+                    tweets.append(tweet_data)
+            
+            logger.info(f"{len(tweets)} tweets récupérés pour @{account}")
+            return tweets
             
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des tweets de {account}: {str(e)}")
             return []
-    
+            
     def fetch_all_accounts(self) -> Dict[str, List[Dict[str, Any]]]:
         """Récupère les tweets de tous les comptes configurés."""
         all_tweets = {}
         
         try:
+            # Connexion à Twitter
+            self.login()
+            
             # Récupération des tweets pour chaque compte
             for account in config.CRYPTO_ACCOUNTS:
                 tweets = self.fetch_account_tweets(account)
                 all_tweets[account] = tweets
+                time.sleep(2)  # Délai entre les comptes
             
             return all_tweets
             
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des tweets : {str(e)}")
-            return all_tweets 
+            return all_tweets
+            
+        finally:
+            if self.driver:
+                self.driver.quit() 
