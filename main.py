@@ -1,39 +1,77 @@
+import os
 import json
 import argparse
 from datetime import datetime
 from twitter_fetcher import TwitterFetcher
+from rss_fetcher import RSSFetcher
 from market_data_fetcher import MarketDataFetcher
 from external_sources_fetcher import ExternalSourcesFetcher
 from summarizer import TweetSummarizer
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List
+from dotenv import load_dotenv
 
+# Configuration du logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-def save_data(tweet_summaries: Dict[str, Dict[str, Any]], market_data: Dict[str, Any], external_data: Dict[str, Any]):
+def display_market_data(market_data: Dict[str, Any]):
+    """Affiche les données de marché de manière formatée."""
+    print("\n=== DONNÉES DE MARCHÉ ===\n")
+    
+    # Affichage des prix des cryptos
+    if 'prices' in market_data and 'prices' in market_data['prices']:
+        print("💰 Prix des Cryptos :")
+        for crypto, price in market_data['prices']['prices'].items():
+            change = market_data['prices']['changes_24h'].get(crypto, 0)
+            print(f"  {crypto.upper()}: ${price:,.2f} ({change:+.2f}%)")
+    
+    # Affichage des alertes de baleines
+    if 'whale_alerts' in market_data and market_data['whale_alerts']:
+        print("\n🐋 Alertes de Baleines :")
+        for alert in market_data['whale_alerts'][:5]:  # Limite aux 5 dernières alertes
+            print(f"  {alert['amount']} {alert['symbol']} - {alert['type']}")
+    
+    # Affichage des métriques de sentiment
+    if 'sentiment' in market_data and 'metrics' in market_data['sentiment']:
+        print("\n📊 Métriques de Sentiment :")
+        for metric, value in market_data['sentiment']['metrics'].items():
+            print(f"  {metric}: {value}")
+
+def display_rss_data(rss_data: List[Dict[str, Any]]):
+    """Affiche les données RSS de manière formatée."""
+    print("\n=== ACTUALITÉS CRYPTO ===\n")
+    
+    if not rss_data:
+        print("Aucune actualité disponible")
+        return
+    
+    for entry in rss_data[:10]:  # Limite aux 10 dernières actualités
+        print(f"📰 {entry['title']}")
+        print(f"   {entry['summary'][:200]}...")  # Limite le résumé à 200 caractères
+        print(f"   🔗 {entry['link']}")
+        print(f"   📅 {entry['published']}")
+        print("-" * 80)
+
+def save_data(tweets: Dict[str, Any], market_data: Dict[str, Any], rss_data: List[Dict[str, Any]], filename: str = None):
     """Sauvegarde les données dans un fichier JSON."""
-    try:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"crypto_data_{timestamp}.json"
-        
-        data = {
-            'timestamp': timestamp,
-            'tweet_summaries': tweet_summaries,
-            'market_data': market_data,
-            'external_data': external_data
-        }
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            
-        logger.info(f"Données sauvegardées dans {filename}")
-        
-    except Exception as e:
-        logger.error(f"Erreur lors de la sauvegarde des données : {str(e)}")
+    if filename is None:
+        filename = f"crypto_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    data = {
+        'tweets': tweets,
+        'market_data': market_data,
+        'rss_data': rss_data,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    
+    logger.info(f"Données sauvegardées dans {filename}")
 
 def display_summaries(summaries: dict):
     """Affiche les résumés dans la console."""
@@ -46,33 +84,6 @@ def display_summaries(summaries: dict):
             print(f"\n🏷️ Hashtags populaires : #{', #'.join(data['hashtags'])}")
         print(f"💫 Engagement moyen : {data['engagement']:.1f}")
         print("-" * 50)
-
-def display_market_data(market_data: dict):
-    """Affiche les données de marché dans la console."""
-    print("\n=== DONNÉES DE MARCHÉ ===\n")
-    
-    # Affichage des prix
-    if 'prices' in market_data:
-        print("💰 Prix des Cryptos :")
-        for crypto, price in market_data['prices'].get('prices', {}).items():
-            change = market_data['prices'].get('changes_24h', {}).get(crypto, 0)
-            print(f"  {crypto.upper()}: ${price:,.2f} ({change:+.2f}%)")
-    
-    # Affichage des alertes de baleines
-    if 'whale_alerts' in market_data and market_data['whale_alerts']:
-        print("\n🐋 Dernières Alertes de Baleines :")
-        for alert in market_data['whale_alerts'][:3]:  # Afficher les 3 dernières alertes
-            print(f"  {alert['currency']}: {alert['amount_usd']:,.2f} USD")
-    
-    # Affichage des métriques de sentiment
-    if 'sentiment' in market_data:
-        print("\n📊 Métriques de Sentiment :")
-        if 'metrics' in market_data['sentiment']:
-            metrics = market_data['sentiment']['metrics']
-            if 'fear_and_greed' in metrics:
-                print(f"  Fear & Greed Index: {metrics['fear_and_greed']}")
-            if 'nvt' in metrics:
-                print(f"  NVT Ratio: {metrics['nvt']}")
 
 def display_external_sources(external_data):
     """Affiche les données des sources externes."""
@@ -100,57 +111,38 @@ def display_external_sources(external_data):
 def main():
     """Fonction principale."""
     try:
-        parser = argparse.ArgumentParser(description='Veille Crypto - Récupération et analyse des tweets crypto')
-        parser.add_argument('--market-only', action='store_true', help='Récupérer uniquement les données de marché')
-        args = parser.parse_args()
-        
-        # Initialisation des composants
-        tweet_fetcher = TwitterFetcher()
-        summarizer = TweetSummarizer()
-        market_fetcher = MarketDataFetcher()
-        external_fetcher = ExternalSourcesFetcher()
+        # Chargement des variables d'environnement
+        load_dotenv()
         
         # Récupération des données de marché
         logger.info("Récupération des données de marché...")
+        market_fetcher = MarketDataFetcher()
         market_data = market_fetcher.fetch_all_market_data()
         display_market_data(market_data)
         
-        if not args.market_only:
-            # Récupération des tweets
-            logger.info("Début de la récupération des tweets...")
-            all_tweets = tweet_fetcher.fetch_all_accounts()
-            logger.info(f"Récupération terminée pour {len(all_tweets)} comptes")
-            
-            # Génération des résumés
-            logger.info("Génération des résumés...")
-            summaries = summarizer.summarize_all_accounts(all_tweets)
-            
-            # Affichage des résumés
-            print("\n=== RÉSUMÉ DE LA VEILLE CRYPTO ===\n")
-            for account, summary in summaries.items():
-                print(f"\n📱 @{account}")
-                print("-" * 50)
-                print(f"📊 Analyse des {len(all_tweets.get(account, []))} derniers tweets :")
-                print(f"🎯 Thèmes principaux : {', '.join(summary.get('themes', []))}")
-                print(f"💫 Engagement moyen : {summary.get('engagement', 0.0)} interactions par tweet")
-                if summary.get('hashtags'):
-                    print(f"🏷️ Hashtags populaires : {' '.join(summary['hashtags'])}")
-                print("\n" + summary['summary'])
-                print("-" * 50)
+        # Récupération des flux RSS
+        logger.info("Récupération des flux RSS...")
+        rss_fetcher = RSSFetcher()
+        rss_data = rss_fetcher.fetch_feeds()
+        display_rss_data(rss_data)
         
-        # Récupération des sources externes
-        logger.info("Récupération des sources externes...")
-        external_data = external_fetcher.fetch_all_sources()
-        display_external_sources(external_data)
+        # Récupération des tweets
+        logger.info("Début de la récupération des tweets...")
+        twitter_fetcher = TwitterFetcher()
+        tweets = twitter_fetcher.fetch_all_accounts()
+        
+        # Génération des résumés
+        logger.info("Génération des résumés...")
+        summarizer = TweetSummarizer()
+        summaries = summarizer.analyze_tweets(tweets)
         
         # Sauvegarde des données
-        if not args.market_only:
-            save_data(summaries, market_data, external_data)
-        else:
-            save_data({}, market_data, external_data)
-            
+        save_data(tweets, market_data, rss_data)
+        
+        logger.info("Traitement terminé avec succès")
+        
     except Exception as e:
-        logger.error(f"Une erreur est survenue : {str(e)}")
+        logger.error(f"Erreur lors de l'exécution : {str(e)}")
         raise
 
 if __name__ == "__main__":
