@@ -14,7 +14,6 @@ class MarketDataFetcher:
     def __init__(self):
         """Initialise le fetcher avec les clés API nécessaires."""
         load_dotenv()
-        self.coingecko_api_key = os.getenv('COINGECKO_API_KEY')
         self.glassnode_api_key = os.getenv('GLASSNODE_API_KEY')
         self.whale_alert_api_key = os.getenv('WHALE_ALERT_API_KEY')
         
@@ -39,10 +38,7 @@ class MarketDataFetcher:
                 'include_market_cap': 'true'
             }
             
-            # Ajout de la clé API si disponible
-            if self.coingecko_api_key:
-                params['x_cg_pro_api_key'] = self.coingecko_api_key
-            
+            # Utilisation de l'API publique
             response = requests.get(f"{self.coingecko_base_url}/simple/price", params=params)
             response.raise_for_status()
             
