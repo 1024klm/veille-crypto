@@ -1,10 +1,11 @@
 import requests
 import logging
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
 import config
+from utils import require_api_key
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -47,7 +48,7 @@ class MarketDataFetcher:
             # Normalisation des données
             normalized_data = {
                 "source": "coingecko",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "prices": {},
                 "market_caps": {},
                 "changes_24h": {}
@@ -65,61 +66,52 @@ class MarketDataFetcher:
             logger.error(f"Erreur lors de la récupération des prix : {str(e)}")
             return {
                 "source": "coingecko",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e)
             }
     
-    def get_whale_alerts(self) -> List[Dict[str, Any]]:
-        """Récupère les dernières alertes de transferts massifs."""
+    @require_api_key('WHALE_ALERT_API_KEY')
+    def get_whale_transactions(self) -> List[Dict[str, Any]]:
+        """Récupère les transactions de baleines depuis Whale Alert."""
         try:
-            logger.info("Récupération des alertes de baleines")
+            logger.info("Récupération des transactions de baleines")
             
-            if not self.whale_alert_api_key:
-                logger.warning("Clé API Whale Alert non configurée")
-                return []
-            
+            url = f"{self.whale_alert_base_url}/transactions"
             params = {
                 'api_key': self.whale_alert_api_key,
-                'min_value': 500000,  # Valeur minimale en USD
-                'limit': 10  # Nombre d'alertes à récupérer
+                'min_value': 1000000,  # 1M USD
+                'limit': 10
             }
             
-            response = requests.get(f"{self.whale_alert_base_url}/transactions", params=params)
+            response = requests.get(url, params=params)
             response.raise_for_status()
             
             data = response.json()
+            transactions = []
             
-            # Normalisation des données
-            normalized_alerts = []
-            for alert in data.get('transactions', []):
-                normalized_alert = {
-                    "source": "whale_alert",
-                    "timestamp": alert.get('timestamp'),
-                    "hash": alert.get('hash'),
-                    "from": alert.get('from'),
-                    "to": alert.get('to'),
-                    "amount": alert.get('amount'),
-                    "amount_usd": alert.get('amount_usd'),
-                    "currency": alert.get('currency'),
-                    "type": alert.get('type')
+            for tx in data.get('transactions', []):
+                normalized_tx = {
+                    'source': 'whale_alert',
+                    'timestamp': tx.get('timestamp'),
+                    'from': tx.get('from'),
+                    'to': tx.get('to'),
+                    'amount': tx.get('amount'),
+                    'symbol': tx.get('symbol'),
+                    'usd_value': tx.get('usd_value')
                 }
-                normalized_alerts.append(normalized_alert)
+                transactions.append(normalized_tx)
             
-            logger.info(f"{len(normalized_alerts)} alertes de baleines récupérées")
-            return normalized_alerts
+            return transactions
             
         except Exception as e:
-            logger.error(f"Erreur lors de la récupération des alertes de baleines : {str(e)}")
+            logger.error(f"Erreur lors de la récupération des transactions de baleines : {str(e)}")
             return []
     
+    @require_api_key('GLASSNODE_API_KEY')
     def get_sentiment_metrics(self) -> Dict[str, Any]:
         """Récupère les métriques de sentiment depuis Glassnode."""
         try:
             logger.info("Récupération des métriques de sentiment")
-            
-            if not self.glassnode_api_key:
-                logger.warning("Clé API Glassnode non configurée")
-                return {}
             
             # Paramètres de la requête
             params = {
@@ -149,7 +141,7 @@ class MarketDataFetcher:
             # Normalisation des données
             normalized_data = {
                 "source": "glassnode",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "metrics": metrics
             }
             
@@ -160,15 +152,14 @@ class MarketDataFetcher:
             logger.error(f"Erreur lors de la récupération des métriques de sentiment : {str(e)}")
             return {
                 "source": "glassnode",
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "error": str(e)
             }
     
     def fetch_all_market_data(self) -> Dict[str, Any]:
-        """Récupère toutes les données de marché disponibles."""
+        """Récupère toutes les données de marché."""
         return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "prices": self.get_top_crypto_prices(),
-            "whale_alerts": self.get_whale_alerts(),
-            "sentiment": self.get_sentiment_metrics()
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'sentiment': self.get_sentiment_metrics(),
+            'whale_transactions': self.get_whale_transactions()
         } 

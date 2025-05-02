@@ -3,12 +3,13 @@ import logging
 import feedparser
 import requests
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from pytrends.request import TrendReq
 from dotenv import load_dotenv
 import time
 import random
+from utils import require_api_key
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -62,7 +63,7 @@ class ExternalSourcesFetcher:
                     'link': entry.get('link', ''),
                     'published': entry.get('published', ''),
                     'summary': entry.get('summary', ''),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 entries.append(normalized_entry)
             
@@ -91,7 +92,7 @@ class ExternalSourcesFetcher:
             # Normalisation des données
             trends_data = {
                 'source': 'google_trends',
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'keywords': self.trend_keywords,
                 'data': interest_over_time.to_dict() if not interest_over_time.empty else {}
             }
@@ -102,17 +103,14 @@ class ExternalSourcesFetcher:
             logger.error(f"Erreur lors de la récupération des tendances Google: {str(e)}")
             return {
                 'source': 'google_trends',
-                'timestamp': datetime.utcnow().isoformat(),
+                'timestamp': datetime.now(timezone.utc).isoformat(),
                 'error': str(e)
             }
             
+    @require_api_key('CRYPTOPANIC_API_KEY')
     def fetch_cryptopanic_data(self) -> List[Dict[str, Any]]:
         """Récupère les données depuis CryptoPanic."""
         try:
-            if not self.cryptopanic_api_key:
-                logger.warning("Clé API CryptoPanic non configurée")
-                return []
-                
             url = f"https://cryptopanic.com/api/v1/posts/?auth_token={self.cryptopanic_api_key}"
             response = requests.get(url)
             response.raise_for_status()
@@ -129,7 +127,7 @@ class ExternalSourcesFetcher:
                     'published_at': post.get('published_at', ''),
                     'source_title': post.get('source', {}).get('title', ''),
                     'sentiment': post.get('sentiment', ''),
-                    'timestamp': datetime.utcnow().isoformat()
+                    'timestamp': datetime.now(timezone.utc).isoformat()
                 }
                 normalized_posts.append(normalized_post)
             
@@ -138,6 +136,32 @@ class ExternalSourcesFetcher:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des données CryptoPanic: {str(e)}")
             return []
+            
+    @require_api_key('LUNARCRUSH_API_KEY')
+    def fetch_lunarcrush_data(self) -> Dict[str, Any]:
+        """Récupère les données depuis LunarCrush."""
+        try:
+            url = "https://api.lunarcrush.com/v2"
+            params = {
+                'data': 'assets',
+                'key': self.lunarcrush_api_key,
+                'symbol': 'BTC,ETH'
+            }
+            
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            return {
+                'source': 'lunarcrush',
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'data': data
+            }
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération des données LunarCrush: {str(e)}")
+            return {}
             
     def scrape_ecb_press(self) -> List[Dict[str, Any]]:
         """Scrape les communiqués de presse de la BCE."""
@@ -160,7 +184,7 @@ class ExternalSourcesFetcher:
                         'title': title.text.strip(),
                         'date': date.text.strip(),
                         'link': link.get('href', ''),
-                        'timestamp': datetime.utcnow().isoformat()
+                        'timestamp': datetime.now(timezone.utc).isoformat()
                     }
                     normalized_items.append(normalized_item)
             
@@ -173,12 +197,13 @@ class ExternalSourcesFetcher:
     def fetch_all_sources(self) -> Dict[str, Any]:
         """Récupère toutes les sources externes."""
         all_data = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': datetime.now(timezone.utc).isoformat(),
             'regulatory': [],
             'exchanges': [],
             'community': [],
             'trends': {},
-            'news': []
+            'news': [],
+            'social': {}
         }
         
         # Récupération des flux RSS réglementaires
@@ -198,6 +223,9 @@ class ExternalSourcesFetcher:
         
         # Récupération des données CryptoPanic
         all_data['news'].extend(self.fetch_cryptopanic_data())
+        
+        # Récupération des données LunarCrush
+        all_data['social'] = self.fetch_lunarcrush_data()
         
         # Récupération des communiqués BCE
         all_data['regulatory'].extend(self.scrape_ecb_press())

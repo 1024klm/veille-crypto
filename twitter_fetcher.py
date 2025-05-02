@@ -1,6 +1,7 @@
 import time
 import random
 import os
+import shutil
 from typing import List, Dict, Any
 from datetime import datetime
 from selenium import webdriver
@@ -28,7 +29,7 @@ def get_valid_driver_path() -> str:
         str: Le chemin du chromedriver valide.
         
     Raises:
-        ValueError: Si aucun chromedriver valide n'est trouvé.
+        RuntimeError: Si aucun chromedriver valide n'est trouvé.
     """
     try:
         # 1. Essayer d'installer via ChromeDriverManager
@@ -54,11 +55,21 @@ def get_valid_driver_path() -> str:
         if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
             return env_path
             
-        raise ValueError("Aucun chromedriver valide trouvé. Veuillez vérifier l'installation ou définir CHROMEDRIVER_PATH.")
+        # 4. Chercher dans le PATH système
+        system_path = shutil.which("chromedriver")
+        if system_path and os.access(system_path, os.X_OK):
+            return system_path
+            
+        raise RuntimeError(
+            "Aucun ChromeDriver valide trouvé. Veuillez :\n"
+            "1. Vérifier l'installation de ChromeDriver\n"
+            "2. Définir la variable d'environnement CHROMEDRIVER_PATH\n"
+            "3. Ajouter ChromeDriver au PATH système"
+        )
         
     except Exception as e:
-        logger.error(f"Erreur lors de la recherche du chromedriver : {str(e)}")
-        raise
+        logger.error(f"Erreur lors de la recherche du ChromeDriver : {str(e)}")
+        raise RuntimeError(f"Impossible de localiser ChromeDriver : {str(e)}")
 
 class TwitterFetcher:
     def __init__(self):
@@ -82,6 +93,7 @@ class TwitterFetcher:
             chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
             
             path = get_valid_driver_path()
+            logger.info("ChromeDriver utilisé : %s", path)
             service = Service(executable_path=path)
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             self.driver.implicitly_wait(10)

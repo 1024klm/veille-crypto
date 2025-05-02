@@ -1,7 +1,7 @@
 import os
 import json
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 from twitter_fetcher import TwitterFetcher
 from rss_fetcher import RSSFetcher
 from market_data_fetcher import MarketDataFetcher
@@ -56,22 +56,24 @@ def display_rss_data(rss_data: List[Dict[str, Any]]):
         print(f"   📅 {entry['published']}")
         print("-" * 80)
 
-def save_data(tweets: Dict[str, Any], market_data: Dict[str, Any], rss_data: List[Dict[str, Any]], filename: str = None):
+def save_data(tweets: Dict[str, Any], market_data: Dict[str, Any], external_data: Dict[str, Any]) -> None:
     """Sauvegarde les données dans un fichier JSON."""
-    if filename is None:
-        filename = f"crypto_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    
-    data = {
-        'tweets': tweets,
-        'market_data': market_data,
-        'rss_data': rss_data,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    
-    logger.info(f"Données sauvegardées dans {filename}")
+    try:
+        filename = f"crypto_data_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+        data = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'tweets': tweets,
+            'market_data': market_data,
+            'external_data': external_data
+        }
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            
+        logger.info(f"Données sauvegardées dans {filename}")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la sauvegarde des données : {str(e)}")
 
 def display_summaries(summaries: dict):
     """Affiche les résumés dans la console."""
@@ -108,23 +110,41 @@ def display_external_sources(external_data):
                 except (IndexError, AttributeError) as e:
                     logger.warning(f"Erreur lors de l'affichage des tendances pour {keyword}: {str(e)}")
 
+def parse_args():
+    """Parse les arguments de la ligne de commande."""
+    parser = argparse.ArgumentParser(description='Récupération et analyse de données crypto')
+    parser.add_argument('--skip-market', action='store_true', help='Sauter la récupération des données de marché')
+    parser.add_argument('--skip-external', action='store_true', help='Sauter la récupération des sources externes')
+    return parser.parse_args()
+
 def main():
     """Fonction principale."""
     try:
         # Chargement des variables d'environnement
         load_dotenv()
         
-        # Récupération des données de marché
-        logger.info("Récupération des données de marché...")
-        market_fetcher = MarketDataFetcher()
-        market_data = market_fetcher.fetch_all_market_data()
-        display_market_data(market_data)
+        # Parse des arguments
+        args = parse_args()
         
-        # Récupération des flux RSS
-        logger.info("Récupération des flux RSS...")
-        rss_fetcher = RSSFetcher()
-        rss_data = rss_fetcher.fetch_feeds()
-        display_rss_data(rss_data)
+        # Récupération des données de marché
+        if not args.skip_market:
+            logger.info("Récupération des données de marché...")
+            market_fetcher = MarketDataFetcher()
+            market_data = market_fetcher.fetch_all_market_data()
+            display_market_data(market_data)
+        else:
+            logger.info("Skipping market data fetch...")
+            market_data = {}
+        
+        # Récupération des sources externes
+        if not args.skip_external:
+            logger.info("Récupération des sources externes...")
+            external_fetcher = ExternalSourcesFetcher()
+            external_data = external_fetcher.fetch_all_sources()
+            display_external_sources(external_data)
+        else:
+            logger.info("Skipping external sources fetch...")
+            external_data = {}
         
         # Récupération des tweets
         logger.info("Début de la récupération des tweets...")
@@ -137,7 +157,7 @@ def main():
         summaries = summarizer.analyze_tweets(tweets)
         
         # Sauvegarde des données
-        save_data(tweets, market_data, rss_data)
+        save_data(tweets, market_data, external_data)
         
         logger.info("Traitement terminé avec succès")
         
