@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import time
 import random
 from utils import require_api_key
+import config
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +50,11 @@ class ExternalSourcesFetcher:
         
         # Configuration des mots-clés pour Google Trends
         self.trend_keywords = ['bitcoin', 'ethereum', 'cryptocurrency', 'blockchain']
+        
+        # URLs des sources
+        self.coindesk_rss_url = "https://www.coindesk.com/arc/outboundfeeds/rss"
+        self.cointelegraph_rss_url = "https://cointelegraph.com/rss"
+        self.cryptonews_rss_url = "https://cryptonews.com/feed"
         
     def fetch_rss_feed(self, url: str, source: str) -> List[Dict[str, Any]]:
         """Récupère et parse un flux RSS."""
@@ -194,43 +200,94 @@ class ExternalSourcesFetcher:
             logger.error(f"Erreur lors du scraping des communiqués BCE: {str(e)}")
             return []
             
-    def fetch_all_sources(self) -> Dict[str, Any]:
-        """Récupère toutes les sources externes."""
-        all_data = {
+    def get_news_articles(self) -> List[Dict[str, Any]]:
+        """Récupère les articles de news depuis plusieurs sources RSS."""
+        try:
+            logger.info("Récupération des articles de news")
+            
+            articles = []
+            sources = [
+                ("coindesk", self.coindesk_rss_url),
+                ("cointelegraph", self.cointelegraph_rss_url),
+                ("cryptonews", self.cryptonews_rss_url)
+            ]
+            
+            for source_name, url in sources:
+                try:
+                    feed = feedparser.parse(url)
+                    
+                    for entry in feed.entries:
+                        article = {
+                            'source': source_name,
+                            'title': entry.get('title', ''),
+                            'link': entry.get('link', ''),
+                            'published': entry.get('published', ''),
+                            'summary': entry.get('summary', '')
+                        }
+                        articles.append(article)
+                        
+                except Exception as e:
+                    logger.warning(f"Erreur lors de la récupération des articles de {source_name}: {str(e)}")
+                    continue
+            
+            logger.info(f"{len(articles)} articles récupérés avec succès")
+            return articles
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération des articles : {str(e)}")
+            return []
+            
+    def get_reddit_posts(self) -> List[Dict[str, Any]]:
+        """Récupère les posts Reddit depuis l'API publique."""
+        try:
+            logger.info("Récupération des posts Reddit")
+            
+            # Subreddits à suivre
+            subreddits = ['cryptocurrency', 'bitcoin', 'ethereum']
+            posts = []
+            
+            for subreddit in subreddits:
+                try:
+                    # Utilisation de l'API publique de Reddit
+                    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
+                    headers = {'User-Agent': 'CryptoNewsFetcher/1.0'}
+                    
+                    response = requests.get(url, headers=headers)
+                    response.raise_for_status()
+                    
+                    data = response.json()
+                    
+                    for post in data.get('data', {}).get('children', [])[:5]:  # Top 5 posts
+                        post_data = post.get('data', {})
+                        normalized_post = {
+                            'source': 'reddit',
+                            'subreddit': subreddit,
+                            'title': post_data.get('title', ''),
+                            'url': post_data.get('url', ''),
+                            'score': post_data.get('score', 0),
+                            'num_comments': post_data.get('num_comments', 0),
+                            'created_utc': post_data.get('created_utc', 0)
+                        }
+                        posts.append(normalized_post)
+                        
+                except Exception as e:
+                    logger.warning(f"Erreur lors de la récupération des posts de r/{subreddit}: {str(e)}")
+                    continue
+            
+            logger.info(f"{len(posts)} posts Reddit récupérés avec succès")
+            return posts
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération des posts Reddit : {str(e)}")
+            return []
+            
+    def fetch_all_external_data(self) -> Dict[str, Any]:
+        """Récupère toutes les données externes."""
+        return {
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'regulatory': [],
-            'exchanges': [],
-            'community': [],
-            'trends': {},
-            'news': [],
-            'social': {}
+            'news': self.get_news_articles(),
+            'reddit': self.get_reddit_posts()
         }
-        
-        # Récupération des flux RSS réglementaires
-        for source, url in self.rss_feeds['regulatory'].items():
-            all_data['regulatory'].extend(self.fetch_rss_feed(url, source))
-            
-        # Récupération des flux RSS des exchanges
-        for source, url in self.rss_feeds['exchanges'].items():
-            all_data['exchanges'].extend(self.fetch_rss_feed(url, source))
-            
-        # Récupération des flux RSS communautaires
-        for source, url in self.rss_feeds['community'].items():
-            all_data['community'].extend(self.fetch_rss_feed(url, source))
-            
-        # Récupération des tendances Google
-        all_data['trends'] = self.fetch_google_trends()
-        
-        # Récupération des données CryptoPanic
-        all_data['news'].extend(self.fetch_cryptopanic_data())
-        
-        # Récupération des données LunarCrush
-        all_data['social'] = self.fetch_lunarcrush_data()
-        
-        # Récupération des communiqués BCE
-        all_data['regulatory'].extend(self.scrape_ecb_press())
-        
-        return all_data 
 
 if __name__ == "__main__":
     try:
@@ -241,7 +298,7 @@ if __name__ == "__main__":
         
         # Récupération des données
         logger.info("Récupération des données depuis toutes les sources...")
-        data = fetcher.fetch_all_sources()
+        data = fetcher.fetch_all_external_data()
         
         # Affichage des statistiques
         logger.info("\nRésultats par catégorie :")

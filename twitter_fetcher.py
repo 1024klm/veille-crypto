@@ -3,7 +3,7 @@ import random
 import os
 import shutil
 from typing import List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -11,7 +11,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
-from webdriver_manager.chrome import ChromeDriverManager
 import logging
 from dotenv import load_dotenv
 import config
@@ -31,45 +30,21 @@ def get_valid_driver_path() -> str:
     Raises:
         RuntimeError: Si aucun chromedriver valide n'est trouvé.
     """
-    try:
-        # 1. Essayer d'installer via ChromeDriverManager
-        driver_path = ChromeDriverManager().install()
+    # 1. Vérifier la variable d'environnement
+    env_path = os.getenv('CHROMEDRIVER_PATH')
+    if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
+        return env_path
         
-        # 2. Parcourir récursivement le dossier pour trouver le chromedriver
-        def find_chromedriver(directory: str) -> str:
-            for root, _, files in os.walk(directory):
-                for file in files:
-                    if file == "chromedriver":
-                        path = os.path.join(root, file)
-                        # Vérifier si le fichier est exécutable
-                        if os.access(path, os.X_OK):
-                            return path
-            return None
-            
-        chromedriver_path = find_chromedriver(driver_path)
-        if chromedriver_path:
-            return chromedriver_path
-            
-        # 3. Vérifier la variable d'environnement
-        env_path = os.getenv('CHROMEDRIVER_PATH')
-        if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
-            return env_path
-            
-        # 4. Chercher dans le PATH système
-        system_path = shutil.which("chromedriver")
-        if system_path and os.access(system_path, os.X_OK):
-            return system_path
-            
-        raise RuntimeError(
-            "Aucun ChromeDriver valide trouvé. Veuillez :\n"
-            "1. Vérifier l'installation de ChromeDriver\n"
-            "2. Définir la variable d'environnement CHROMEDRIVER_PATH\n"
-            "3. Ajouter ChromeDriver au PATH système"
-        )
+    # 2. Chercher dans le PATH système
+    system_path = shutil.which("chromedriver")
+    if system_path and os.access(system_path, os.X_OK):
+        return system_path
         
-    except Exception as e:
-        logger.error(f"Erreur lors de la recherche du ChromeDriver : {str(e)}")
-        raise RuntimeError(f"Impossible de localiser ChromeDriver : {str(e)}")
+    raise RuntimeError(
+        "ChromeDriver introuvable. Veuillez :\n"
+        "1. Installer ChromeDriver et l'ajouter au PATH\n"
+        "2. Ou définir CHROMEDRIVER_PATH dans .env"
+    )
 
 class TwitterFetcher:
     def __init__(self):

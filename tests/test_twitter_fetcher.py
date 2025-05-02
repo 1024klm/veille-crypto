@@ -1,12 +1,14 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from twitter_fetcher import TwitterFetcher
+from twitter_fetcher import TwitterFetcher, get_valid_driver_path
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
+import pytest
+import os
 
 class TestTwitterFetcher(unittest.TestCase):
     def setUp(self):
@@ -145,6 +147,69 @@ class TestTwitterFetcher(unittest.TestCase):
             
             self.assertIsInstance(tweets, list)
             mock_driver.get.assert_called_once()
+
+def test_get_valid_driver_path():
+    """Test la fonction get_valid_driver_path."""
+    # Test avec chemin valide dans les variables d'environnement
+    with patch.dict(os.environ, {'CHROMEDRIVER_PATH': '/fake/path/chromedriver'}):
+        assert get_valid_driver_path() == '/fake/path/chromedriver'
+    
+    # Test avec chemin valide dans le PATH
+    with patch('shutil.which', return_value='/usr/bin/chromedriver'):
+        assert get_valid_driver_path() == '/usr/bin/chromedriver'
+    
+    # Test sans chemin valide
+    with patch.dict(os.environ, {}, clear=True), \
+         patch('shutil.which', return_value=None):
+        with pytest.raises(RuntimeError):
+            get_valid_driver_path()
+
+@pytest.fixture
+def mock_webdriver():
+    """Fixture pour mocker le WebDriver."""
+    with patch('selenium.webdriver.Chrome') as mock:
+        yield mock
+
+def test_twitter_fetcher_initialization(mock_webdriver):
+    """Test l'initialisation du TwitterFetcher."""
+    with patch('src.twitter_fetcher.get_valid_driver_path', return_value='/fake/path/chromedriver'):
+        fetcher = TwitterFetcher()
+        assert fetcher.driver is not None
+        mock_webdriver.assert_called_once()
+
+def test_get_tweets(mock_webdriver):
+    """Test la récupération des tweets."""
+    # Configuration du mock
+    mock_driver = MagicMock()
+    mock_webdriver.return_value = mock_driver
+    
+    # Mock des éléments de la page
+    mock_element = MagicMock()
+    mock_element.text = "Test tweet"
+    mock_driver.find_elements.return_value = [mock_element]
+    
+    with patch('src.twitter_fetcher.get_valid_driver_path', return_value='/fake/path/chromedriver'):
+        fetcher = TwitterFetcher()
+        tweets = fetcher.get_tweets('testuser', 5)
+        
+        assert isinstance(tweets, list)
+        assert len(tweets) == 1
+        assert tweets[0]['text'] == "Test tweet"
+        
+        # Vérification des appels
+        mock_driver.get.assert_called_once()
+        mock_driver.find_elements.assert_called_once()
+
+def test_cleanup(mock_webdriver):
+    """Test le nettoyage des ressources."""
+    mock_driver = MagicMock()
+    mock_webdriver.return_value = mock_driver
+    
+    with patch('src.twitter_fetcher.get_valid_driver_path', return_value='/fake/path/chromedriver'):
+        fetcher = TwitterFetcher()
+        fetcher.cleanup()
+        
+        mock_driver.quit.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main() 

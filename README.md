@@ -1,112 +1,116 @@
 # Veille Crypto
 
-Un outil de veille automatisée pour suivre l'actualité crypto sur Twitter et les marchés.
+Un outil de veille crypto qui agrège des données de différentes sources.
 
 ## Fonctionnalités
 
-- Récupération automatique des tweets des comptes crypto majeurs
-- Analyse des thèmes et tendances
-- Suivi des données de marché (prix, volume, etc.)
-- Alertes de baleines
-- Métriques de sentiment
-- Sources d'actualités externes
-- Système de cache intelligent
-- Tests unitaires complets
+- Récupération des prix des cryptos depuis CoinGecko
+- Analyse de sentiment depuis CryptoPanic RSS
+- Articles de news depuis plusieurs sources RSS (CoinDesk, CoinTelegraph, CryptoNews)
+- Posts Reddit depuis les subreddits crypto populaires
+- Tweets crypto depuis Twitter (via scraping)
+
+## Prérequis
+
+- Python 3.8+
+- Chrome/Chromium installé
+- ChromeDriver installé et configuré
 
 ## Installation
 
-1. Cloner le repository :
+1. Clonez le repository :
 ```bash
 git clone https://github.com/votre-username/veille_crypto.git
 cd veille_crypto
 ```
 
-2. Créer un environnement virtuel :
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-.\venv\Scripts\activate  # Windows
-```
-
-3. Installer les dépendances :
+2. Installez les dépendances :
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Configurer les variables d'environnement :
+3. Configurez les variables d'environnement :
 ```bash
 cp .env.example .env
-# Éditer .env avec vos identifiants
+# Éditez le fichier .env avec vos configurations
 ```
 
 ## Configuration
 
-Le fichier `.env` doit contenir :
-```
-TWITTER_USERNAME=votre_username
-TWITTER_PASSWORD=votre_password
-COINGECKO_API_KEY=votre_clé_api
-GLASSNODE_API_KEY=votre_clé_api
-WHALE_ALERT_API_KEY=votre_clé_api
-CRYPTOPANIC_API_KEY=votre_clé_api
-```
+### Variables d'environnement
+
+- `TWITTER_API_KEY` : Clé API Twitter
+- `TWITTER_API_SECRET` : Secret API Twitter
+- `TWITTER_ACCESS_TOKEN` : Token d'accès Twitter
+- `TWITTER_ACCESS_TOKEN_SECRET` : Secret du token d'accès Twitter
+- `CHROMEDRIVER_PATH` : Chemin vers l'exécutable ChromeDriver
+- `COINGECKO_API_KEY` : Clé API CoinGecko (optionnelle)
+- `DATA_DIR` : Dossier de stockage des données
+- `LOGS_DIR` : Dossier de stockage des logs
+
+### ChromeDriver
+
+Le script nécessite ChromeDriver pour le scraping Twitter. Vous pouvez :
+1. Télécharger ChromeDriver manuellement depuis [le site officiel](https://sites.google.com/chromium.org/driver/)
+2. Placer l'exécutable dans un dossier de votre PATH
+3. Ou spécifier son chemin dans la variable d'environnement `CHROMEDRIVER_PATH`
 
 ## Utilisation
 
-### Récupération complète
+### Récupération des données
+
 ```bash
 python main.py
 ```
 
-### Récupération des données de marché uniquement
+Options disponibles :
+- `--skip-market` : Ne pas récupérer les données de marché
+- `--skip-external` : Ne pas récupérer les données externes
+
+### Tests
+
 ```bash
-python main.py --market-only
+python -m pytest tests/
 ```
 
-## Tests
-
-Pour exécuter les tests :
-```bash
-python -m unittest discover tests
-```
-
-## Structure du Projet
+## Structure du projet
 
 ```
 veille_crypto/
-├── .env                    # Variables d'environnement
+├── data/                  # Dossier de stockage des données
+├── logs/                  # Dossier de stockage des logs
+├── src/                   # Code source
+│   ├── market_data_fetcher.py    # Récupération des données de marché
+│   ├── external_sources_fetcher.py    # Récupération des sources externes
+│   ├── twitter_fetcher.py        # Récupération des tweets
+│   ├── utils.py                  # Utilitaires
+│   └── main.py                   # Point d'entrée
+├── tests/                 # Tests
 ├── .env.example           # Exemple de configuration
-├── .gitignore            # Fichiers à ignorer
-├── config.py             # Configuration
-├── external_sources_fetcher.py  # Sources externes
-├── main.py               # Point d'entrée
-├── market_data_fetcher.py # Données de marché
-├── requirements.txt      # Dépendances
-├── summarizer.py         # Analyse des tweets
-├── tests/               # Tests unitaires
-│   ├── __init__.py
-│   ├── test_summarizer.py
-│   └── test_twitter_fetcher.py
-└── twitter_fetcher.py    # Récupération des tweets
+├── requirements.txt       # Dépendances
+└── README.md             # Documentation
 ```
 
-## Améliorations Récentes
+## Sources de données
 
-- Optimisation de la récupération des tweets
-- Système de cache intelligent avec TTL
-- Analyse améliorée des thèmes
-- Tests unitaires complets
-- Gestion robuste des erreurs
-- Documentation améliorée
+### Données de marché
+- CoinGecko API (gratuite)
+- CryptoPanic RSS (gratuit)
+
+### Sources externes
+- CoinDesk RSS (gratuit)
+- CoinTelegraph RSS (gratuit)
+- CryptoNews RSS (gratuit)
+- Reddit API (gratuite)
+- Twitter (via scraping)
 
 ## Contribution
 
 Les contributions sont les bienvenues ! N'hésitez pas à :
 1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit vos changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
+2. Créer une branche pour votre fonctionnalité
+3. Commiter vos changements
+4. Pousser vers la branche
 5. Ouvrir une Pull Request
 
 ## Licence
