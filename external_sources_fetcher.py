@@ -203,3 +203,38 @@ class ExternalSourcesFetcher:
         all_data['regulatory'].extend(self.scrape_ecb_press())
         
         return all_data 
+
+if __name__ == "__main__":
+    try:
+        logger.info("Démarrage des tests de ExternalSourcesFetcher...")
+        
+        # Instanciation du fetcher
+        fetcher = ExternalSourcesFetcher()
+        
+        # Récupération des données
+        logger.info("Récupération des données depuis toutes les sources...")
+        data = fetcher.fetch_all_sources()
+        
+        # Affichage des statistiques
+        logger.info("\nRésultats par catégorie :")
+        logger.info(f"Réglementaire : {len(data['regulatory'])} items")
+        logger.info(f"Exchanges : {len(data['exchanges'])} items")
+        logger.info(f"Communauté : {len(data['community'])} items")
+        logger.info(f"Tendances : {len(data['trends'].get('data', {}))} points de données")
+        logger.info(f"Actualités : {len(data['news'])} items")
+        
+        logger.info("\nTest terminé avec succès !")
+        
+    except KeyError as e:
+        logger.error(f"Erreur de clé : {str(e)}")
+        logger.error("Structure de données inattendue")
+        exit(1)
+        
+    except TimeoutError as e:
+        logger.error(f"Timeout : {str(e)}")
+        logger.error("Une requête a dépassé le temps imparti")
+        exit(1)
+        
+    except Exception as e:
+        logger.error(f"Erreur inattendue : {str(e)}")
+        exit(1) 
