@@ -14,10 +14,51 @@ from webdriver_manager.chrome import ChromeDriverManager
 import logging
 from dotenv import load_dotenv
 import config
+import stat
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def get_valid_driver_path() -> str:
+    """
+    Recherche un chemin valide pour le chromedriver.
+    
+    Returns:
+        str: Le chemin du chromedriver valide.
+        
+    Raises:
+        ValueError: Si aucun chromedriver valide n'est trouvé.
+    """
+    try:
+        # 1. Essayer d'installer via ChromeDriverManager
+        driver_path = ChromeDriverManager().install()
+        
+        # 2. Parcourir récursivement le dossier pour trouver le chromedriver
+        def find_chromedriver(directory: str) -> str:
+            for root, _, files in os.walk(directory):
+                for file in files:
+                    if file == "chromedriver":
+                        path = os.path.join(root, file)
+                        # Vérifier si le fichier est exécutable
+                        if os.access(path, os.X_OK):
+                            return path
+            return None
+            
+        chromedriver_path = find_chromedriver(driver_path)
+        if chromedriver_path:
+            return chromedriver_path
+            
+        # 3. Vérifier la variable d'environnement
+        env_path = os.getenv('CHROMEDRIVER_PATH')
+        if env_path and os.path.isfile(env_path) and os.access(env_path, os.X_OK):
+            return env_path
+            
+        raise ValueError("Aucun chromedriver valide trouvé. Veuillez vérifier l'installation ou définir CHROMEDRIVER_PATH.")
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la recherche du chromedriver : {str(e)}")
+        raise
 
 class TwitterFetcher:
     def __init__(self):
@@ -40,8 +81,8 @@ class TwitterFetcher:
             chrome_options.add_argument('--window-size=1920,1080')
             chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
             
-            driver_path = ChromeDriverManager().install()
-            service = Service(executable_path=driver_path)
+            path = get_valid_driver_path()
+            service = Service(executable_path=path)
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             self.driver.implicitly_wait(10)
             logger.info("WebDriver initialisé avec succès")
