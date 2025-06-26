@@ -8,6 +8,9 @@ from market_data_fetcher import MarketDataFetcher
 from external_sources_fetcher import ExternalSourcesFetcher
 from summarizer import TweetSummarizer
 from notifier import CryptoNotifier
+from sentiment_analyzer import AdvancedSentimentAnalyzer
+from cache_manager import cache_manager
+from anomaly_detector import AnomalyDetector
 import logging
 from typing import Dict, Any, List
 from dotenv import load_dotenv
@@ -211,16 +214,62 @@ def main():
     # Récupération des tweets
     if not args.skip_twitter and twitter_fetcher:
         try:
-            all_data['twitter'] = twitter_fetcher.fetch_all_accounts()
+            # Vérification du cache
+            cached_twitter = cache_manager.get('all_accounts', 'twitter_tweets')
+            if cached_twitter:
+                logger.info("Données Twitter récupérées depuis le cache")
+                all_data['twitter'] = cached_twitter
+            else:
+                all_data['twitter'] = twitter_fetcher.fetch_all_accounts()
+                cache_manager.set('all_accounts', all_data['twitter'], 'twitter_tweets')
+            
             save_data(all_data['twitter'], 'twitter_data.json')
+            
+            # Analyse de sentiment sur les tweets
+            if all_data['twitter']:
+                sentiment_analyzer = AdvancedSentimentAnalyzer()
+                all_texts = []
+                for account, tweets in all_data['twitter'].items():
+                    for tweet in tweets:
+                        if 'text' in tweet:
+                            all_texts.append(tweet['text'])
+                
+                if all_texts:
+                    sentiment_analysis = sentiment_analyzer.analyze_batch(all_texts[:50])  # Limite à 50 tweets
+                    save_data(sentiment_analysis, 'sentiment_analysis.json')
+                    logger.info(f"Analyse de sentiment complétée: sentiment moyen = {sentiment_analysis['average_sentiment']:.3f}")
+                    
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des tweets : {str(e)}")
     
     # Récupération des données de marché
     if not args.skip_market and market_fetcher:
         try:
-            all_data['market'] = market_fetcher.fetch_all_market_data()
+            # Vérification du cache
+            cached_market = cache_manager.get('all_market_data', 'market_prices')
+            if cached_market:
+                logger.info("Données de marché récupérées depuis le cache")
+                all_data['market'] = cached_market
+            else:
+                all_data['market'] = market_fetcher.fetch_all_market_data()
+                cache_manager.set('all_market_data', all_data['market'], 'market_prices')
+            
             save_data(all_data['market'], 'market_data.json')
+            
+            # Détection d'anomalies
+            anomaly_detector = AnomalyDetector()
+            anomalies = anomaly_detector.analyze_market_data(all_data['market'])
+            
+            # Sauvegarde des anomalies
+            save_data(anomalies, 'anomalies.json')
+            
+            # Si des anomalies critiques sont détectées, les logger
+            total_anomalies = sum(len(v) for v in anomalies.values())
+            if total_anomalies > 0:
+                logger.warning(f"{total_anomalies} anomalies détectées!")
+                anomaly_report = anomaly_detector.generate_anomaly_report(anomalies)
+                logger.info(f"Rapport d'anomalies:\n{anomaly_report}")
+                
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des données de marché : {str(e)}")
     
@@ -248,6 +297,10 @@ def main():
     
     if not args.skip_external and 'external' in all_data:
         display_external_sources(all_data['external'])
+    
+    # Affichage des statistiques de cache
+    cache_stats = cache_manager.get_stats()
+    logger.info(f"Statistiques du cache: {cache_stats}")
     
     # Nettoyage
     if twitter_fetcher:
