@@ -242,5 +242,12 @@ class TwitterFetcher:
             return all_tweets
             
         finally:
-            if self.driver:
-                self.driver.quit() 
+            self.cleanup()
+    
+    def cleanup(self):
+        """Nettoie les ressources utilisées."""
+        if self.driver:
+            try:
+                self.driver.quit()
+            except Exception as e:
+                logger.warning(f"Erreur lors de la fermeture du driver: {str(e)}") 

@@ -32,6 +32,9 @@ CRYPTO_ACCOUNTS = [
     'binance'
 ]
 
+# Répertoire de sauvegarde des données
+DATA_DIR = 'data'
+
 # Paramètres de récupération
 TWEETS_PER_ACCOUNT = 10
 MAX_RETRIES = 3

@@ -2,14 +2,13 @@ import os
 import logging
 import feedparser
 import requests
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from datetime import datetime, timezone
 from bs4 import BeautifulSoup
 from pytrends.request import TrendReq
 from dotenv import load_dotenv
 import time
 import random
-from utils import require_api_key
 import config
 
 # Configuration du logging
@@ -20,9 +19,6 @@ class ExternalSourcesFetcher:
     def __init__(self):
         """Initialise le fetcher avec les configurations nécessaires."""
         load_dotenv()
-        self.cryptopanic_api_key = os.getenv('CRYPTOPANIC_API_KEY')
-        self.lunarcrush_api_key = os.getenv('LUNARCRUSH_API_KEY')
-        self.dune_analytics_api_key = os.getenv('DUNE_ANALYTICS_API_KEY')
         
         # Configuration des flux RSS
         self.rss_feeds = {
@@ -34,10 +30,37 @@ class ExternalSourcesFetcher:
             },
             'exchanges': {
                 'binance': 'https://www.binance.com/en/blog/rss',
-                'coinbase': 'https://blog.coinbase.com/feed'
+                'coinbase': 'https://blog.coinbase.com/feed',
+                'bitget': 'https://www.bitget.com/blog/rss'
+            },
+            'media': {
+                'coindesk': 'https://www.coindesk.com/arc/outboundfeeds/rss',
+                'cointelegraph': 'https://cointelegraph.com/rss',
+                'decrypt': 'https://decrypt.co/feed',
+                'bitcoin_magazine': 'https://bitcoinmagazine.com/.rss/full/',
+                'theblock': 'https://www.theblock.co/rss.xml',
+                'cryptoslate': 'https://cryptoslate.com/feed/',
+                'cryptobriefing': 'https://cryptobriefing.com/feed/',
+                'messari': 'https://messari.io/rss',
+                'chainalysis': 'https://blog.chainalysis.com/reports/feed/'
+            },
+            'newsletters': {
+                'thedefiant': 'https://thedefiant.io/feed',
+                'banklesshq': 'https://newsletter.banklesshq.com/feed'
+            },
+            'analytics': {
+                'glassnode': 'https://insights.glassnode.com/rss/',
+                'santiment': 'https://insights.santiment.net/feed',
+                'intotheblock': 'https://blog.intotheblock.com/feed/'
             },
             'community': {
-                'hackernoon': 'https://hackernoon.com/feed'
+                'hackernoon': 'https://hackernoon.com/feed',
+                'bitcointalk': 'https://bitcointalk.org/index.php?action=.xml;board=1;limit=20;type=rss'
+            },
+            'french': {
+                'journalducoin': 'https://journalducoin.com/feed/',
+                'cryptoast': 'https://cryptoast.fr/feed/',
+                'coinacademy': 'https://coinacademy.fr/feed/'
             }
         }
         
@@ -50,11 +73,6 @@ class ExternalSourcesFetcher:
         
         # Configuration des mots-clés pour Google Trends
         self.trend_keywords = ['bitcoin', 'ethereum', 'cryptocurrency', 'blockchain']
-        
-        # URLs des sources
-        self.coindesk_rss_url = "https://www.coindesk.com/arc/outboundfeeds/rss"
-        self.cointelegraph_rss_url = "https://cointelegraph.com/rss"
-        self.cryptonews_rss_url = "https://cryptonews.com/feed"
         
     def fetch_rss_feed(self, url: str, source: str) -> List[Dict[str, Any]]:
         """Récupère et parse un flux RSS."""
@@ -113,180 +131,67 @@ class ExternalSourcesFetcher:
                 'error': str(e)
             }
             
-    @require_api_key('CRYPTOPANIC_API_KEY')
-    def fetch_cryptopanic_data(self) -> List[Dict[str, Any]]:
-        """Récupère les données depuis CryptoPanic."""
-        try:
-            url = f"https://cryptopanic.com/api/v1/posts/?auth_token={self.cryptopanic_api_key}"
-            response = requests.get(url)
-            response.raise_for_status()
+    def get_regulatory_news(self) -> List[Dict[str, Any]]:
+        """Récupère les nouvelles réglementaires."""
+        regulatory_news = []
+        for source, url in self.rss_feeds['regulatory'].items():
+            regulatory_news.extend(self.fetch_rss_feed(url, source))
+        return regulatory_news
+        
+    def get_exchange_blog_posts(self) -> List[Dict[str, Any]]:
+        """Récupère les posts de blog des exchanges."""
+        exchange_posts = []
+        for source, url in self.rss_feeds['exchanges'].items():
+            exchange_posts.extend(self.fetch_rss_feed(url, source))
+        return exchange_posts
+        
+    def get_community_posts(self) -> List[Dict[str, Any]]:
+        """Récupère les posts de la communauté."""
+        community_posts = []
+        for source, url in self.rss_feeds['community'].items():
+            community_posts.extend(self.fetch_rss_feed(url, source))
+        return community_posts
+        
+    def get_media_news(self) -> List[Dict[str, Any]]:
+        """Récupère les nouvelles des médias spécialisés."""
+        media_news = []
+        for source, url in self.rss_feeds['media'].items():
+            media_news.extend(self.fetch_rss_feed(url, source))
+        return media_news
+        
+    def get_newsletter_content(self) -> List[Dict[str, Any]]:
+        """Récupère le contenu des newsletters."""
+        newsletter_content = []
+        for source, url in self.rss_feeds['newsletters'].items():
+            newsletter_content.extend(self.fetch_rss_feed(url, source))
+        return newsletter_content
+        
+    def get_analytics_insights(self) -> List[Dict[str, Any]]:
+        """Récupère les analyses et insights."""
+        analytics = []
+        for source, url in self.rss_feeds['analytics'].items():
+            analytics.extend(self.fetch_rss_feed(url, source))
+        return analytics
+        
+    def get_french_news(self) -> List[Dict[str, Any]]:
+        """Récupère les actualités en français."""
+        french_news = []
+        for source, url in self.rss_feeds['french'].items():
+            french_news.extend(self.fetch_rss_feed(url, source))
+        return french_news
             
-            data = response.json()
-            
-            # Normalisation des données
-            normalized_posts = []
-            for post in data.get('results', []):
-                normalized_post = {
-                    'source': 'cryptopanic',
-                    'title': post.get('title', ''),
-                    'url': post.get('url', ''),
-                    'published_at': post.get('published_at', ''),
-                    'source_title': post.get('source', {}).get('title', ''),
-                    'sentiment': post.get('sentiment', ''),
-                    'timestamp': datetime.now(timezone.utc).isoformat()
-                }
-                normalized_posts.append(normalized_post)
-            
-            return normalized_posts
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération des données CryptoPanic: {str(e)}")
-            return []
-            
-    @require_api_key('LUNARCRUSH_API_KEY')
-    def fetch_lunarcrush_data(self) -> Dict[str, Any]:
-        """Récupère les données depuis LunarCrush."""
-        try:
-            url = "https://api.lunarcrush.com/v2"
-            params = {
-                'data': 'assets',
-                'key': self.lunarcrush_api_key,
-                'symbol': 'BTC,ETH'
-            }
-            
-            response = requests.get(url, params=params)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            return {
-                'source': 'lunarcrush',
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'data': data
-            }
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération des données LunarCrush: {str(e)}")
-            return {}
-            
-    def scrape_ecb_press(self) -> List[Dict[str, Any]]:
-        """Scrape les communiqués de presse de la BCE."""
-        try:
-            response = requests.get(self.scraping_urls['ecb'])
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.text, 'html.parser')
-            press_items = soup.find_all('div', class_='press-item')
-            
-            normalized_items = []
-            for item in press_items[:10]:  # Limite aux 10 derniers communiqués
-                title = item.find('h2')
-                date = item.find('time')
-                link = item.find('a')
-                
-                if title and date and link:
-                    normalized_item = {
-                        'source': 'ecb',
-                        'title': title.text.strip(),
-                        'date': date.text.strip(),
-                        'link': link.get('href', ''),
-                        'timestamp': datetime.now(timezone.utc).isoformat()
-                    }
-                    normalized_items.append(normalized_item)
-            
-            return normalized_items
-            
-        except Exception as e:
-            logger.error(f"Erreur lors du scraping des communiqués BCE: {str(e)}")
-            return []
-            
-    def get_news_articles(self) -> List[Dict[str, Any]]:
-        """Récupère les articles de news depuis plusieurs sources RSS."""
-        try:
-            logger.info("Récupération des articles de news")
-            
-            articles = []
-            sources = [
-                ("coindesk", self.coindesk_rss_url),
-                ("cointelegraph", self.cointelegraph_rss_url),
-                ("cryptonews", self.cryptonews_rss_url)
-            ]
-            
-            for source_name, url in sources:
-                try:
-                    feed = feedparser.parse(url)
-                    
-                    for entry in feed.entries:
-                        article = {
-                            'source': source_name,
-                            'title': entry.get('title', ''),
-                            'link': entry.get('link', ''),
-                            'published': entry.get('published', ''),
-                            'summary': entry.get('summary', '')
-                        }
-                        articles.append(article)
-                        
-                except Exception as e:
-                    logger.warning(f"Erreur lors de la récupération des articles de {source_name}: {str(e)}")
-                    continue
-            
-            logger.info(f"{len(articles)} articles récupérés avec succès")
-            return articles
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération des articles : {str(e)}")
-            return []
-            
-    def get_reddit_posts(self) -> List[Dict[str, Any]]:
-        """Récupère les posts Reddit depuis l'API publique."""
-        try:
-            logger.info("Récupération des posts Reddit")
-            
-            # Subreddits à suivre
-            subreddits = ['cryptocurrency', 'bitcoin', 'ethereum']
-            posts = []
-            
-            for subreddit in subreddits:
-                try:
-                    # Utilisation de l'API publique de Reddit
-                    url = f"https://www.reddit.com/r/{subreddit}/hot.json"
-                    headers = {'User-Agent': 'CryptoNewsFetcher/1.0'}
-                    
-                    response = requests.get(url, headers=headers)
-                    response.raise_for_status()
-                    
-                    data = response.json()
-                    
-                    for post in data.get('data', {}).get('children', [])[:5]:  # Top 5 posts
-                        post_data = post.get('data', {})
-                        normalized_post = {
-                            'source': 'reddit',
-                            'subreddit': subreddit,
-                            'title': post_data.get('title', ''),
-                            'url': post_data.get('url', ''),
-                            'score': post_data.get('score', 0),
-                            'num_comments': post_data.get('num_comments', 0),
-                            'created_utc': post_data.get('created_utc', 0)
-                        }
-                        posts.append(normalized_post)
-                        
-                except Exception as e:
-                    logger.warning(f"Erreur lors de la récupération des posts de r/{subreddit}: {str(e)}")
-                    continue
-            
-            logger.info(f"{len(posts)} posts Reddit récupérés avec succès")
-            return posts
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération des posts Reddit : {str(e)}")
-            return []
-            
-    def fetch_all_external_data(self) -> Dict[str, Any]:
-        """Récupère toutes les données externes."""
+    def fetch_all_sources(self) -> Dict[str, Any]:
+        """Récupère toutes les sources externes."""
         return {
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'news': self.get_news_articles(),
-            'reddit': self.get_reddit_posts()
+            'regulatory': self.get_regulatory_news(),
+            'exchange': self.get_exchange_blog_posts(),
+            'media': self.get_media_news(),
+            'newsletters': self.get_newsletter_content(),
+            'analytics': self.get_analytics_insights(),
+            'community': self.get_community_posts(),
+            'french': self.get_french_news(),
+            'trends': self.fetch_google_trends()
         }
 
 if __name__ == "__main__":
@@ -298,12 +203,12 @@ if __name__ == "__main__":
         
         # Récupération des données
         logger.info("Récupération des données depuis toutes les sources...")
-        data = fetcher.fetch_all_external_data()
+        data = fetcher.fetch_all_sources()
         
         # Affichage des statistiques
         logger.info("\nRésultats par catégorie :")
         logger.info(f"Réglementaire : {len(data['regulatory'])} items")
-        logger.info(f"Exchanges : {len(data['exchanges'])} items")
+        logger.info(f"Exchanges : {len(data['exchange'])} items")
         logger.info(f"Communauté : {len(data['community'])} items")
         logger.info(f"Tendances : {len(data['trends'].get('data', {}))} points de données")
         logger.info(f"Actualités : {len(data['news'])} items")
