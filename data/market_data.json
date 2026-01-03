@@ -1,60 +1,60 @@
 {
-  "timestamp": "2026-01-03T05:01:43.733518+00:00",
+  "timestamp": "2026-01-03T05:08:58.394411+00:00",
   "prices": {
     "source": "coingecko",
-    "timestamp": "2026-01-03T05:01:43.856844+00:00",
+    "timestamp": "2026-01-03T05:08:58.653615+00:00",
     "prices": {
       "aptos": 1.91,
-      "arbitrum": 0.209953,
+      "arbitrum": 0.210588,
       "avalanche-2": 14.1,
-      "binancecoin": 878.92,
-      "bitcoin": 90139,
-      "cardano": 0.396717,
-      "chainlink": 13.22,
-      "cosmos": 2.23,
-      "dogecoin": 0.142781,
-      "ethereum": 3115.36,
-      "optimism": 0.306574,
+      "binancecoin": 878.65,
+      "bitcoin": 90125,
+      "cardano": 0.39783,
+      "chainlink": 13.23,
+      "cosmos": 2.25,
+      "dogecoin": 0.143133,
+      "ethereum": 3116.74,
+      "optimism": 0.307528,
       "polkadot": 2.15,
       "ripple": 2.05,
-      "solana": 132.29
+      "solana": 132.36
     },
     "market_caps": {
-      "aptos": 1428610264.8660276,
-      "arbitrum": 1200686340.0916297,
-      "avalanche-2": 6067045081.742764,
-      "binancecoin": 121043405312.56784,
-      "bitcoin": 1799004126511.3892,
-      "cardano": 14541250188.752897,
-      "chainlink": 9361688414.071682,
-      "cosmos": 1081538849.19671,
-      "dogecoin": 24005884945.992313,
-      "ethereum": 375944805472.8298,
-      "optimism": 596339570.8232094,
-      "polkadot": 3545875173.8233933,
-      "ripple": 124268574839.98726,
-      "solana": 74512480226.56096
+      "aptos": 1431262623.5365567,
+      "arbitrum": 1203860584.5181131,
+      "avalanche-2": 6066612707.802237,
+      "binancecoin": 121048409789.50365,
+      "bitcoin": 1800399079961.2688,
+      "cardano": 14572878688.648027,
+      "chainlink": 9364575969.137836,
+      "cosmos": 1088579164.5351357,
+      "dogecoin": 24025850887.43014,
+      "ethereum": 376114853742.1642,
+      "optimism": 597842586.9939255,
+      "polkadot": 3547641074.3771996,
+      "ripple": 124300057416.33072,
+      "solana": 74555538822.01459
     },
     "changes_24h": {
-      "aptos": 3.3017314902619304,
-      "arbitrum": 4.723484937973991,
-      "avalanche-2": 4.038504465462636,
-      "binancecoin": 1.7505696489633726,
-      "bitcoin": 1.8148135102558114,
-      "cardano": 10.339962320242101,
-      "chainlink": 2.594316825332159,
-      "cosmos": 6.640156082252909,
-      "dogecoin": 11.403803794279256,
-      "ethereum": 3.559438918827837,
-      "optimism": 2.851543697640357,
-      "polkadot": 8.142859663695535,
-      "ripple": 9.202713571957988,
-      "solana": 4.271318786454069
+      "aptos": 3.3412314584208973,
+      "arbitrum": 5.1099986818751475,
+      "avalanche-2": 4.030608869846574,
+      "binancecoin": 1.7283011115417235,
+      "bitcoin": 1.760393770561318,
+      "cardano": 10.749089086067189,
+      "chainlink": 2.5432228696226957,
+      "cosmos": 7.294182443353178,
+      "dogecoin": 11.750503012081571,
+      "ethereum": 3.5676527896699444,
+      "optimism": 3.1660060344061534,
+      "polkadot": 8.155987508299686,
+      "ripple": 9.476235050502344,
+      "solana": 4.3936231557720316
     }
   },
   "sentiment": {
     "source": "cryptopanic_rss",
-    "timestamp": "2026-01-03T05:01:44.107693+00:00",
+    "timestamp": "2026-01-03T05:08:58.913063+00:00",
     "metrics": {
       "bullish_count": 0,
       "bearish_count": 0,
@@ -64,19 +64,19 @@
   },
   "whale_alerts": [],
   "market_cap": {
-    "total_market_cap": 3164691461189.683,
-    "total_volume": 128572024870.24219,
+    "total_market_cap": 3165583759491.882,
+    "total_volume": 128423369410.31647,
     "market_cap_percentage": {
-      "btc": 56.86257532208702,
-      "eth": 11.88177977271629,
-      "usdt": 5.909423992316322,
-      "xrp": 3.925608833504303,
-      "bnb": 3.825393329206993,
-      "usdc": 2.38068728737226,
-      "sol": 2.354385088148129,
-      "steth": 0.8707640719612901,
-      "trx": 0.862382705587014,
-      "doge": 0.7591837493308281
+      "btc": 56.868060619877895,
+      "eth": 11.87953532088717,
+      "usdt": 5.907482452742102,
+      "xrp": 3.9260000177442267,
+      "bnb": 3.8232971799019024,
+      "usdc": 2.379599533794676,
+      "sol": 2.354705655828592,
+      "steth": 0.8697213372669013,
+      "trx": 0.8623047042104351,
+      "doge": 0.7588531571987692
     },
     "active_cryptocurrencies": 18965,
     "upcoming_icos": 0,
@@ -90,7 +90,7 @@
       "name": "Pepe",
       "symbol": "PEPE",
       "market_cap_rank": 50,
-      "price_btc": 6.748214682513912e-11,
+      "price_btc": 6.740090380074051e-11,
       "score": 0
     },
     {
@@ -98,24 +98,32 @@
       "name": "Pudgy Penguins",
       "symbol": "PENGU",
       "market_cap_rank": 124,
-      "price_btc": 1.2201293745943438e-07,
+      "price_btc": 1.2220457324290296e-07,
       "score": 1
     },
     {
       "id": "monad",
       "name": "Monad",
       "symbol": "MON",
-      "market_cap_rank": 212,
-      "price_btc": 3.19068082631782e-07,
+      "market_cap_rank": 214,
+      "price_btc": 3.1242491172535366e-07,
       "score": 2
+    },
+    {
+      "id": "ripple",
+      "name": "XRP",
+      "symbol": "XRP",
+      "market_cap_rank": 4,
+      "price_btc": 2.271806573365716e-05,
+      "score": 3
     },
     {
       "id": "lighter",
       "name": "Lighter",
       "symbol": "LIT",
       "market_cap_rank": 127,
-      "price_btc": 2.9836760409806814e-05,
-      "score": 3
+      "price_btc": 2.982860397421687e-05,
+      "score": 4
     },
     {
       "id": "bitcoin",
@@ -123,22 +131,14 @@
       "symbol": "BTC",
       "market_cap_rank": 1,
       "price_btc": 1.0,
-      "score": 4
+      "score": 5
     },
     {
       "id": "pi-network",
       "name": "Pi Network",
       "symbol": "PI",
       "market_cap_rank": 63,
-      "price_btc": 2.3650981775389053e-06,
-      "score": 5
-    },
-    {
-      "id": "ripple",
-      "name": "XRP",
-      "symbol": "XRP",
-      "market_cap_rank": 4,
-      "price_btc": 2.272162005208295e-05,
+      "price_btc": 2.365846717663565e-06,
       "score": 6
     },
     {
@@ -146,23 +146,23 @@
       "name": "Virtuals Protocol",
       "symbol": "VIRTUAL",
       "market_cap_rank": 142,
-      "price_btc": 9.363345113804101e-06,
+      "price_btc": 9.409213972108033e-06,
       "score": 7
-    },
-    {
-      "id": "river",
-      "name": "River",
-      "symbol": "RIVER",
-      "market_cap_rank": 219,
-      "price_btc": 0.00016797398435826658,
-      "score": 8
     },
     {
       "id": "solana",
       "name": "Solana",
       "symbol": "SOL",
       "market_cap_rank": 7,
-      "price_btc": 0.001467998666112681,
+      "price_btc": 0.0014676183164039373,
+      "score": 8
+    },
+    {
+      "id": "river",
+      "name": "River",
+      "symbol": "RIVER",
+      "market_cap_rank": 220,
+      "price_btc": 0.0001672976954167838,
       "score": 9
     }
   ]

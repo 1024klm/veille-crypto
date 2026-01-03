@@ -1,8 +1,9 @@
 import os
 import json
 import dash
-from dash import dcc, html, Input, Output
+from dash import dcc, html, Input, Output, State
 import plotly.graph_objs as go
+from plotly.subplots import make_subplots
 import plotly.express as px
 import pandas as pd
 from datetime import datetime, timedelta
@@ -12,6 +13,14 @@ from typing import Dict, Any, List
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Import de l'analyseur technique
+try:
+    from technical_analyzer import TechnicalAnalyzer
+    TECH_ANALYZER_AVAILABLE = True
+except ImportError:
+    TECH_ANALYZER_AVAILABLE = False
+    logger.warning("TechnicalAnalyzer non disponible")
 
 # Initialisation de l'application Dash
 app = dash.Dash(__name__, title="Crypto Veille Dashboard")
@@ -217,7 +226,7 @@ def create_alerts_feed(alerts_history: List[Dict[str, Any]]) -> html.Div:
 def create_news_feed(external_data: Dict[str, Any]) -> html.Div:
     """Crée un flux des dernières actualités."""
     news_items = []
-    
+
     # Récupération des news de différentes sources
     categories = {
         'media': ('📰', 'Médias'),
@@ -225,7 +234,7 @@ def create_news_feed(external_data: Dict[str, Any]) -> html.Div:
         'analytics': ('📊', 'Analyses'),
         'french': ('🇫🇷', 'FR')
     }
-    
+
     for category, (icon, label) in categories.items():
         if category in external_data:
             for item in external_data[category][:3]:
@@ -254,13 +263,148 @@ def create_news_feed(external_data: Dict[str, Any]) -> html.Div:
                         'borderBottom': f'1px solid {COLORS["background_secondary"]}'
                     })
                 )
-    
+
     return html.Div(news_items, style={
         'maxHeight': '500px',
         'overflowY': 'auto',
         'backgroundColor': COLORS['background_secondary'],
         'borderRadius': '5px'
     })
+
+
+def create_technical_chart(coin_id: str = 'bitcoin') -> go.Figure:
+    """Crée un graphique d'analyse technique avec Plotly."""
+    if not TECH_ANALYZER_AVAILABLE:
+        fig = go.Figure()
+        fig.add_annotation(text="Analyseur technique non disponible", showarrow=False)
+        return fig
+
+    try:
+        analyzer = TechnicalAnalyzer()
+        analysis = analyzer.analyze_coin(coin_id, days=14)
+
+        if 'error' in analysis:
+            fig = go.Figure()
+            fig.add_annotation(text=f"Erreur: {analysis['error']}", showarrow=False)
+            return fig
+
+        df = analysis['data']
+
+        # Création du graphique avec subplots
+        fig = make_subplots(
+            rows=3, cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.5, 0.25, 0.25],
+            subplot_titles=(f'{coin_id.upper()} - Prix & Bandes de Bollinger', 'RSI', 'MACD')
+        )
+
+        # Graphique principal - Chandelier
+        fig.add_trace(
+            go.Candlestick(
+                x=df.index,
+                open=df['open'],
+                high=df['high'],
+                low=df['low'],
+                close=df['close'],
+                name='OHLC',
+                increasing_line_color=COLORS['success'],
+                decreasing_line_color=COLORS['danger']
+            ),
+            row=1, col=1
+        )
+
+        # Bandes de Bollinger
+        bb = analysis['indicators']['bollinger_bands']['bands']
+        fig.add_trace(
+            go.Scatter(x=df.index, y=bb['upper'], mode='lines',
+                       name='BB Upper', line=dict(color='rgba(128,128,128,0.5)', dash='dash')),
+            row=1, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=df.index, y=bb['lower'], mode='lines',
+                       name='BB Lower', line=dict(color='rgba(128,128,128,0.5)', dash='dash'),
+                       fill='tonexty', fillcolor='rgba(128,128,128,0.1)'),
+            row=1, col=1
+        )
+
+        # EMA
+        ma_values = analysis['indicators']['moving_averages']['values']
+        if 'EMA_9' in ma_values:
+            fig.add_trace(
+                go.Scatter(x=df.index, y=ma_values['EMA_9'], mode='lines',
+                           name='EMA 9', line=dict(color='orange', width=1)),
+                row=1, col=1
+            )
+        if 'EMA_21' in ma_values:
+            fig.add_trace(
+                go.Scatter(x=df.index, y=ma_values['EMA_21'], mode='lines',
+                           name='EMA 21', line=dict(color='purple', width=1)),
+                row=1, col=1
+            )
+
+        # RSI
+        rsi = analysis['indicators']['rsi']['series']
+        fig.add_trace(
+            go.Scatter(x=df.index, y=rsi, mode='lines',
+                       name='RSI', line=dict(color='purple', width=2)),
+            row=2, col=1
+        )
+        fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
+        fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+
+        # MACD
+        macd_data = analysis['indicators']['macd']
+        fig.add_trace(
+            go.Scatter(x=df.index, y=macd_data['macd'], mode='lines',
+                       name='MACD', line=dict(color='blue', width=1)),
+            row=3, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=df.index, y=macd_data['signal'], mode='lines',
+                       name='Signal', line=dict(color='red', width=1)),
+            row=3, col=1
+        )
+
+        # Histogram MACD
+        colors = [COLORS['success'] if v >= 0 else COLORS['danger'] for v in macd_data['hist']]
+        fig.add_trace(
+            go.Bar(x=df.index, y=macd_data['hist'], name='Histogram',
+                   marker_color=colors, opacity=0.5),
+            row=3, col=1
+        )
+
+        # Mise en forme
+        fig.update_layout(
+            height=700,
+            plot_bgcolor=COLORS['background'],
+            paper_bgcolor=COLORS['background'],
+            font_color=COLORS['text'],
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            xaxis_rangeslider_visible=False
+        )
+
+        # Ajout des annotations du signal
+        signal = analysis['signals']
+        signal_color = COLORS['success'] if signal['action'] == 'BUY' else COLORS['danger'] if signal['action'] == 'SELL' else COLORS['warning']
+        fig.add_annotation(
+            text=f"Signal: {signal['action']} ({signal['strength']:.0%})",
+            xref="paper", yref="paper",
+            x=0.01, y=0.99,
+            showarrow=False,
+            font=dict(size=14, color=signal_color),
+            bgcolor=COLORS['background_secondary'],
+            borderpad=4
+        )
+
+        return fig
+
+    except Exception as e:
+        logger.error(f"Erreur création graphique technique: {str(e)}")
+        fig = go.Figure()
+        fig.add_annotation(text=f"Erreur: {str(e)}", showarrow=False)
+        return fig
 
 # Layout de l'application
 app.layout = html.Div([
@@ -340,9 +484,58 @@ app.layout = html.Div([
                 'margin': '10px',
                 'verticalAlign': 'top'
             })
+        ]),
+
+        # Ligne 3: Analyse Technique
+        html.Div([
+            html.Div([
+                html.H3("📈 Analyse Technique", style={'color': COLORS['text'], 'marginBottom': '15px'}),
+                html.Div([
+                    html.Label("Sélectionner une crypto:", style={'color': COLORS['text'], 'marginRight': '10px'}),
+                    dcc.Dropdown(
+                        id='crypto-selector',
+                        options=[
+                            {'label': 'Bitcoin (BTC)', 'value': 'bitcoin'},
+                            {'label': 'Ethereum (ETH)', 'value': 'ethereum'},
+                            {'label': 'Solana (SOL)', 'value': 'solana'},
+                            {'label': 'Cardano (ADA)', 'value': 'cardano'},
+                            {'label': 'Polkadot (DOT)', 'value': 'polkadot'},
+                            {'label': 'Avalanche (AVAX)', 'value': 'avalanche-2'},
+                            {'label': 'Chainlink (LINK)', 'value': 'chainlink'},
+                            {'label': 'Ripple (XRP)', 'value': 'ripple'},
+                        ],
+                        value='bitcoin',
+                        style={
+                            'width': '200px',
+                            'backgroundColor': COLORS['background_secondary'],
+                            'color': COLORS['text']
+                        }
+                    ),
+                    html.Button('Actualiser', id='refresh-technical', n_clicks=0, style={
+                        'marginLeft': '10px',
+                        'padding': '8px 16px',
+                        'backgroundColor': COLORS['accent'],
+                        'color': 'white',
+                        'border': 'none',
+                        'borderRadius': '5px',
+                        'cursor': 'pointer'
+                    })
+                ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '20px'}),
+                dcc.Loading(
+                    id="loading-technical",
+                    type="circle",
+                    children=[dcc.Graph(id='technical-chart')]
+                )
+            ], style={
+                'width': '98%',
+                'padding': '20px',
+                'backgroundColor': COLORS['background_secondary'],
+                'borderRadius': '5px',
+                'margin': '10px'
+            })
         ])
     ]),
-    
+
     # Intervalle de rafraîchissement (30 secondes)
     dcc.Interval(
         id='interval-component',
@@ -424,6 +617,16 @@ def update_dashboard(n):
         last_update = "Dernière mise à jour: N/A"
     
     return price_chart, sentiment_gauge, trending_table, alerts_feed, news_feed, market_stats, last_update
+
+@app.callback(
+    Output('technical-chart', 'figure'),
+    [Input('crypto-selector', 'value'),
+     Input('refresh-technical', 'n_clicks')]
+)
+def update_technical_chart(coin_id, n_clicks):
+    """Met à jour le graphique d'analyse technique."""
+    return create_technical_chart(coin_id)
+
 
 if __name__ == '__main__':
     print(f"\n🚀 Dashboard disponible sur: http://localhost:8050\n")

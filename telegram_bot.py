@@ -493,11 +493,180 @@ Des questions? Contactez @YourUsername
         except Exception as e:
             logger.error(f"Erreur send_price_alert: {str(e)}")
     
+    async def watchlist(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Affiche la watchlist de l'utilisateur."""
+        user_id = str(update.effective_user.id)
+        watchlist = self.user_watchlists.get(user_id, [])
+
+        if not watchlist:
+            await update.message.reply_text(
+                "📋 Votre watchlist est vide.\n\n"
+                "Utilisez `/addwatch <coin>` pour ajouter une crypto.\n"
+                "Exemple: `/addwatch bitcoin`",
+                parse_mode='Markdown'
+            )
+            return
+
+        await update.message.reply_text("📊 Récupération des prix de votre watchlist...")
+
+        try:
+            market_data = self.market_fetcher.fetch_all_market_data()
+            prices_data = market_data.get('prices', {}).get('prices', {})
+            changes_data = market_data.get('prices', {}).get('changes_24h', {})
+
+            message = "📋 **VOTRE WATCHLIST**\n\n"
+
+            for coin in watchlist:
+                price = prices_data.get(coin, 0)
+                change = changes_data.get(coin, 0)
+                emoji = "🟢" if change > 0 else "🔴" if change < 0 else "⚪"
+
+                if price >= 1:
+                    price_str = f"${price:,.2f}"
+                else:
+                    price_str = f"${price:.6f}"
+
+                message += f"{emoji} **{coin.upper()}**: {price_str} ({change:+.2f}%)\n"
+
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        except Exception as e:
+            logger.error(f"Erreur watchlist: {str(e)}")
+            await update.message.reply_text("❌ Erreur lors de la récupération des données")
+
+    async def add_to_watchlist(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Ajoute une crypto à la watchlist."""
+        if not context.args:
+            await update.message.reply_text(
+                "❌ Veuillez spécifier une crypto.\n"
+                "Exemple: `/addwatch bitcoin`",
+                parse_mode='Markdown'
+            )
+            return
+
+        user_id = str(update.effective_user.id)
+        coin = context.args[0].lower()
+
+        if user_id not in self.user_watchlists:
+            self.user_watchlists[user_id] = []
+
+        if coin in self.user_watchlists[user_id]:
+            await update.message.reply_text(f"ℹ️ {coin.upper()} est déjà dans votre watchlist")
+            return
+
+        self.user_watchlists[user_id].append(coin)
+        await update.message.reply_text(
+            f"✅ {coin.upper()} ajouté à votre watchlist!\n\n"
+            f"Utilisez /watchlist pour voir votre liste."
+        )
+
+    async def remove_from_watchlist(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Retire une crypto de la watchlist."""
+        if not context.args:
+            await update.message.reply_text(
+                "❌ Veuillez spécifier une crypto.\n"
+                "Exemple: `/removewatch bitcoin`",
+                parse_mode='Markdown'
+            )
+            return
+
+        user_id = str(update.effective_user.id)
+        coin = context.args[0].lower()
+
+        if user_id not in self.user_watchlists or coin not in self.user_watchlists[user_id]:
+            await update.message.reply_text(f"ℹ️ {coin.upper()} n'est pas dans votre watchlist")
+            return
+
+        self.user_watchlists[user_id].remove(coin)
+        await update.message.reply_text(f"✅ {coin.upper()} retiré de votre watchlist!")
+
+    async def set_alert(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Définit une alerte de prix personnalisée."""
+        if len(context.args) < 2:
+            await update.message.reply_text(
+                "❌ Format: `/setalert <coin> <prix>`\n"
+                "Exemple: `/setalert bitcoin 100000`",
+                parse_mode='Markdown'
+            )
+            return
+
+        user_id = str(update.effective_user.id)
+        coin = context.args[0].lower()
+
+        try:
+            target_price = float(context.args[1])
+        except ValueError:
+            await update.message.reply_text("❌ Prix invalide")
+            return
+
+        if user_id not in self.user_alerts:
+            self.user_alerts[user_id] = []
+
+        alert = {
+            'coin': coin,
+            'target_price': target_price,
+            'created_at': datetime.now().isoformat()
+        }
+
+        self.user_alerts[user_id].append(alert)
+
+        await update.message.reply_text(
+            f"🔔 Alerte créée!\n\n"
+            f"Vous serez notifié quand **{coin.upper()}** atteint ${target_price:,.2f}",
+            parse_mode='Markdown'
+        )
+
+    async def list_alerts(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Liste les alertes de l'utilisateur."""
+        user_id = str(update.effective_user.id)
+        alerts = self.user_alerts.get(user_id, [])
+
+        if not alerts:
+            await update.message.reply_text(
+                "🔔 Vous n'avez aucune alerte active.\n\n"
+                "Utilisez `/setalert <coin> <prix>` pour en créer une.",
+                parse_mode='Markdown'
+            )
+            return
+
+        message = "🔔 **VOS ALERTES**\n\n"
+        for i, alert in enumerate(alerts, 1):
+            message += f"{i}. **{alert['coin'].upper()}** → ${alert['target_price']:,.2f}\n"
+
+        message += "\n_Utilisez `/removealert <numéro>` pour supprimer_"
+        await update.message.reply_text(message, parse_mode='Markdown')
+
+    async def remove_alert(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Supprime une alerte."""
+        if not context.args:
+            await update.message.reply_text(
+                "❌ Veuillez spécifier le numéro de l'alerte.\n"
+                "Utilisez /alerts pour voir la liste.",
+                parse_mode='Markdown'
+            )
+            return
+
+        user_id = str(update.effective_user.id)
+
+        try:
+            index = int(context.args[0]) - 1
+            alerts = self.user_alerts.get(user_id, [])
+
+            if 0 <= index < len(alerts):
+                removed = alerts.pop(index)
+                await update.message.reply_text(
+                    f"✅ Alerte supprimée: {removed['coin'].upper()} → ${removed['target_price']:,.2f}"
+                )
+            else:
+                await update.message.reply_text("❌ Numéro d'alerte invalide")
+        except ValueError:
+            await update.message.reply_text("❌ Numéro invalide")
+
     def run(self):
         """Lance le bot Telegram."""
         # Création de l'application
         application = Application.builder().token(self.token).build()
-        
+
         # Ajout des handlers
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("help", self.help))
@@ -506,12 +675,18 @@ Des questions? Contactez @YourUsername
         application.add_handler(CommandHandler("news", self.get_news))
         application.add_handler(CommandHandler("sentiment", self.get_sentiment))
         application.add_handler(CommandHandler("technical", self.technical_analysis))
+        application.add_handler(CommandHandler("watchlist", self.watchlist))
+        application.add_handler(CommandHandler("addwatch", self.add_to_watchlist))
+        application.add_handler(CommandHandler("removewatch", self.remove_from_watchlist))
+        application.add_handler(CommandHandler("setalert", self.set_alert))
+        application.add_handler(CommandHandler("alerts", self.list_alerts))
+        application.add_handler(CommandHandler("removealert", self.remove_alert))
         application.add_handler(CallbackQueryHandler(self.callback_handler))
-        
+
         # Job pour les alertes automatiques (toutes les 5 minutes)
         job_queue = application.job_queue
         job_queue.run_repeating(self.send_price_alert, interval=300, first=10)
-        
+
         # Démarrage du bot
         logger.info("Bot Telegram démarré!")
         application.run_polling(allowed_updates=Update.ALL_TYPES)
