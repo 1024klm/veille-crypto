@@ -2,6 +2,7 @@ import os
 import json
 import argparse
 from datetime import datetime, timezone
+from collections import deque
 from twitter_fetcher import TwitterFetcher
 from rss_fetcher import RSSFetcher
 from market_data_fetcher import MarketDataFetcher
@@ -14,7 +15,42 @@ from anomaly_detector import AnomalyDetector
 import logging
 from typing import Dict, Any, List
 from dotenv import load_dotenv
+import numpy as np
+import pandas as pd
 import config
+
+
+class CustomJSONEncoder(json.JSONEncoder):
+    """Encodeur JSON personnalisé pour gérer les types spéciaux."""
+
+    def default(self, obj):
+        # Gestion des dates et timestamps
+        if isinstance(obj, (datetime, pd.Timestamp)):
+            return obj.isoformat()
+        # Gestion des deques
+        if isinstance(obj, deque):
+            return list(obj)
+        # Gestion des types numpy
+        if isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        if isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        # Gestion des DataFrames pandas
+        if isinstance(obj, pd.DataFrame):
+            return obj.to_dict(orient='records')
+        if isinstance(obj, pd.Series):
+            return obj.to_dict()
+        # Gestion des sets
+        if isinstance(obj, set):
+            return list(obj)
+        # Gestion des bytes
+        if isinstance(obj, bytes):
+            return obj.decode('utf-8', errors='replace')
+        return super().default(obj)
 
 # Configuration du logging
 logging.basicConfig(
@@ -84,12 +120,12 @@ def save_data(data: dict, filename: str):
     try:
         os.makedirs(config.DATA_DIR, exist_ok=True)
         filepath = os.path.join(config.DATA_DIR, filename)
-        
+
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            
+            json.dump(data, f, ensure_ascii=False, indent=2, cls=CustomJSONEncoder)
+
         logger.info(f"Données sauvegardées dans {filepath}")
-        
+
     except Exception as e:
         logger.error(f"Erreur lors de la sauvegarde des données : {str(e)}")
 

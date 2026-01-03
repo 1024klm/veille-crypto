@@ -185,7 +185,7 @@ class CryptoNotifier:
         """Envoie les alertes sur Discord."""
         if not self.discord_webhook:
             return
-            
+
         try:
             for alert in alerts[:5]:  # Limite à 5 alertes
                 embed = {
@@ -194,7 +194,7 @@ class CryptoNotifier:
                     "fields": [],
                     "timestamp": alert['timestamp']
                 }
-                
+
                 if alert['type'] == 'price_change':
                     embed["title"] = f"💰 {alert['crypto'].upper()} - Changement de prix"
                     embed["color"] = 3066993 if alert['change'] > 0 else 15158332
@@ -209,32 +209,89 @@ class CryptoNotifier:
                         {"name": "Montant", "value": f"{alert['amount']:,.0f} {alert['symbol']}", "inline": True},
                         {"name": "Type", "value": alert['transaction_type'], "inline": True}
                     ]
-                    
+                elif alert['type'] == 'trending':
+                    embed["title"] = f"🔥 Crypto Tendance - {alert['name']}"
+                    embed["color"] = 16750848
+                    embed["fields"] = [
+                        {"name": "Symbole", "value": alert['symbol'], "inline": True},
+                        {"name": "Rang", "value": f"#{alert['rank']}", "inline": True}
+                    ]
+
                 payload = {"embeds": [embed]}
-                requests.post(self.discord_webhook, json=payload)
-                
+                response = requests.post(self.discord_webhook, json=payload, timeout=10)
+                response.raise_for_status()
+
             logger.info(f"Alertes Discord envoyées")
-            
+
         except Exception as e:
             logger.error(f"Erreur lors de l'envoi Discord : {str(e)}")
+
+    def send_slack_alert(self, alerts: List[Dict[str, Any]]):
+        """Envoie les alertes sur Slack."""
+        if not self.slack_webhook:
+            return
+
+        try:
+            blocks = [
+                {
+                    "type": "header",
+                    "text": {"type": "plain_text", "text": f"🚨 Crypto Veille - {len(alerts)} alertes"}
+                }
+            ]
+
+            for alert in alerts[:10]:  # Limite à 10 alertes
+                if alert['type'] == 'price_change':
+                    emoji = "📈" if alert['change'] > 0 else "📉"
+                    blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"{emoji} *{alert['crypto'].upper()}*: {alert['change']:+.2f}% | Prix: ${alert['price']:,.2f}"
+                        }
+                    })
+                elif alert['type'] == 'whale_movement':
+                    blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"🐋 *Baleine*: {alert['amount']:,.0f} {alert['symbol']} ({alert['transaction_type']})"
+                        }
+                    })
+                elif alert['type'] == 'trending':
+                    blocks.append({
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"🔥 *Tendance*: {alert['name']} ({alert['symbol']}) - Rang #{alert['rank']}"
+                        }
+                    })
+
+            payload = {"blocks": blocks}
+            response = requests.post(self.slack_webhook, json=payload, timeout=10)
+            response.raise_for_status()
+            logger.info("Alertes Slack envoyées")
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi Slack : {str(e)}")
             
     def check_and_notify(self, all_data: Dict[str, Any]):
         """Vérifie toutes les alertes et envoie les notifications."""
         all_alerts = []
-        
+
         # Vérification des alertes de marché
         if 'market' in all_data:
             all_alerts.extend(self.check_price_alerts(all_data['market']))
             all_alerts.extend(self.check_whale_alerts(all_data['market']))
             all_alerts.extend(self.check_trending_alerts(all_data['market']))
-            
+
         if all_alerts:
             logger.info(f"{len(all_alerts)} alertes détectées")
-            
-            # Envoi des notifications
+
+            # Envoi des notifications sur tous les canaux configurés
             self.send_email_alert(all_alerts)
             self.send_discord_alert(all_alerts)
-            
+            self.send_slack_alert(all_alerts)
+
             # Sauvegarde des alertes
             self.save_alerts(all_alerts)
         else:

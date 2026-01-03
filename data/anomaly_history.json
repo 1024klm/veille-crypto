@@ -1,0 +1,175 @@
+{
+  "prices": {
+    "aptos": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183030",
+        "price": 1.91
+      }
+    ],
+    "arbitrum": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183052",
+        "price": 0.209953
+      }
+    ],
+    "avalanche-2": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183061",
+        "price": 14.1
+      }
+    ],
+    "binancecoin": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183067",
+        "price": 878.92
+      }
+    ],
+    "bitcoin": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183074",
+        "price": 90139
+      }
+    ],
+    "cardano": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183081",
+        "price": 0.396717
+      }
+    ],
+    "chainlink": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183087",
+        "price": 13.22
+      }
+    ],
+    "cosmos": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183092",
+        "price": 2.23
+      }
+    ],
+    "dogecoin": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183098",
+        "price": 0.142781
+      }
+    ],
+    "ethereum": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183104",
+        "price": 3115.36
+      }
+    ],
+    "optimism": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183109",
+        "price": 0.306574
+      }
+    ],
+    "polkadot": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183115",
+        "price": 2.15
+      }
+    ],
+    "ripple": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183122",
+        "price": 2.05
+      }
+    ],
+    "solana": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183128",
+        "price": 132.29
+      }
+    ]
+  },
+  "volumes": {
+    "aptos": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183030",
+        "volume": 0
+      }
+    ],
+    "arbitrum": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183052",
+        "volume": 0
+      }
+    ],
+    "avalanche-2": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183061",
+        "volume": 0
+      }
+    ],
+    "binancecoin": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183067",
+        "volume": 0
+      }
+    ],
+    "bitcoin": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183074",
+        "volume": 0
+      }
+    ],
+    "cardano": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183081",
+        "volume": 0
+      }
+    ],
+    "chainlink": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183087",
+        "volume": 0
+      }
+    ],
+    "cosmos": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183092",
+        "volume": 0
+      }
+    ],
+    "dogecoin": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183098",
+        "volume": 0
+      }
+    ],
+    "ethereum": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183104",
+        "volume": 0
+      }
+    ],
+    "optimism": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183109",
+        "volume": 0
+      }
+    ],
+    "polkadot": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183115",
+        "volume": 0
+      }
+    ],
+    "ripple": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183122",
+        "volume": 0
+      }
+    ],
+    "solana": [
+      {
+        "timestamp": "2026-01-03T06:01:44.183128",
+        "volume": 0
+      }
+    ]
+  },
+  "last_update": "2026-01-03T06:01:44.183177"
+}

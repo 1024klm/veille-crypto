@@ -1,0 +1,170 @@
+[
+  {
+    "type": "price_change",
+    "crypto": "cardano",
+    "change": 10.369550904906614,
+    "price": 0.396446,
+    "timestamp": "2026-01-03T05:53:05.866430"
+  },
+  {
+    "type": "price_change",
+    "crypto": "cosmos",
+    "change": 6.440707815342791,
+    "price": 2.22,
+    "timestamp": "2026-01-03T05:53:05.866451"
+  },
+  {
+    "type": "price_change",
+    "crypto": "dogecoin",
+    "change": 11.591485462440938,
+    "price": 0.142965,
+    "timestamp": "2026-01-03T05:53:05.866455"
+  },
+  {
+    "type": "price_change",
+    "crypto": "polkadot",
+    "change": 8.160565610220221,
+    "price": 2.15,
+    "timestamp": "2026-01-03T05:53:05.866458"
+  },
+  {
+    "type": "price_change",
+    "crypto": "ripple",
+    "change": 9.186197343335063,
+    "price": 2.05,
+    "timestamp": "2026-01-03T05:53:05.866461"
+  },
+  {
+    "type": "trending",
+    "name": "Pepe",
+    "symbol": "PEPE",
+    "rank": 50,
+    "timestamp": "2026-01-03T05:53:05.866474"
+  },
+  {
+    "type": "trending",
+    "name": "Monad",
+    "symbol": "MON",
+    "rank": 212,
+    "timestamp": "2026-01-03T05:53:05.866480"
+  },
+  {
+    "type": "trending",
+    "name": "Pudgy Penguins",
+    "symbol": "PENGU",
+    "rank": 124,
+    "timestamp": "2026-01-03T05:53:05.866483"
+  },
+  {
+    "type": "price_change",
+    "crypto": "cardano",
+    "change": 10.339962320242101,
+    "price": 0.396717,
+    "timestamp": "2026-01-03T06:01:22.378423"
+  },
+  {
+    "type": "price_change",
+    "crypto": "cosmos",
+    "change": 6.640156082252909,
+    "price": 2.23,
+    "timestamp": "2026-01-03T06:01:22.378450"
+  },
+  {
+    "type": "price_change",
+    "crypto": "dogecoin",
+    "change": 11.403803794279256,
+    "price": 0.142781,
+    "timestamp": "2026-01-03T06:01:22.378455"
+  },
+  {
+    "type": "price_change",
+    "crypto": "polkadot",
+    "change": 8.142859663695535,
+    "price": 2.15,
+    "timestamp": "2026-01-03T06:01:22.378460"
+  },
+  {
+    "type": "price_change",
+    "crypto": "ripple",
+    "change": 9.202713571957988,
+    "price": 2.05,
+    "timestamp": "2026-01-03T06:01:22.378464"
+  },
+  {
+    "type": "trending",
+    "name": "Pepe",
+    "symbol": "PEPE",
+    "rank": 50,
+    "timestamp": "2026-01-03T06:01:22.378478"
+  },
+  {
+    "type": "trending",
+    "name": "Pudgy Penguins",
+    "symbol": "PENGU",
+    "rank": 124,
+    "timestamp": "2026-01-03T06:01:22.378485"
+  },
+  {
+    "type": "trending",
+    "name": "Monad",
+    "symbol": "MON",
+    "rank": 212,
+    "timestamp": "2026-01-03T06:01:22.378489"
+  },
+  {
+    "type": "price_change",
+    "crypto": "cardano",
+    "change": 10.339962320242101,
+    "price": 0.396717,
+    "timestamp": "2026-01-03T06:01:58.798321"
+  },
+  {
+    "type": "price_change",
+    "crypto": "cosmos",
+    "change": 6.640156082252909,
+    "price": 2.23,
+    "timestamp": "2026-01-03T06:01:58.798339"
+  },
+  {
+    "type": "price_change",
+    "crypto": "dogecoin",
+    "change": 11.403803794279256,
+    "price": 0.142781,
+    "timestamp": "2026-01-03T06:01:58.798342"
+  },
+  {
+    "type": "price_change",
+    "crypto": "polkadot",
+    "change": 8.142859663695535,
+    "price": 2.15,
+    "timestamp": "2026-01-03T06:01:58.798344"
+  },
+  {
+    "type": "price_change",
+    "crypto": "ripple",
+    "change": 9.202713571957988,
+    "price": 2.05,
+    "timestamp": "2026-01-03T06:01:58.798349"
+  },
+  {
+    "type": "trending",
+    "name": "Pepe",
+    "symbol": "PEPE",
+    "rank": 50,
+    "timestamp": "2026-01-03T06:01:58.798364"
+  },
+  {
+    "type": "trending",
+    "name": "Pudgy Penguins",
+    "symbol": "PENGU",
+    "rank": 124,
+    "timestamp": "2026-01-03T06:01:58.798371"
+  },
+  {
+    "type": "trending",
+    "name": "Monad",
+    "symbol": "MON",
+    "rank": 212,
+    "timestamp": "2026-01-03T06:01:58.798376"
+  }
+]

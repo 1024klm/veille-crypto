@@ -75,8 +75,13 @@ class AnomalyDetector:
             if os.path.exists(history_file):
                 with open(history_file, 'r') as f:
                     history = json.load(f)
-                    self.price_history = history.get('prices', {})
-                    self.volume_history = history.get('volumes', {})
+                    # Conversion des listes en deques
+                    prices = history.get('prices', {})
+                    volumes = history.get('volumes', {})
+                    for coin_id, data in prices.items():
+                        self.price_history[coin_id] = deque(data, maxlen=1440)
+                    for coin_id, data in volumes.items():
+                        self.volume_history[coin_id] = deque(data, maxlen=1440)
                     logger.info("Historique des anomalies chargé")
         except Exception as e:
             logger.error(f"Erreur lors du chargement de l'historique: {str(e)}")
@@ -86,16 +91,17 @@ class AnomalyDetector:
         try:
             history_file = 'data/anomaly_history.json'
             os.makedirs('data', exist_ok=True)
-            
+
+            # Conversion des deques en listes pour la sérialisation JSON
             history = {
-                'prices': self.price_history,
-                'volumes': self.volume_history,
+                'prices': {k: list(v) for k, v in self.price_history.items()},
+                'volumes': {k: list(v) for k, v in self.volume_history.items()},
                 'last_update': datetime.now().isoformat()
             }
-            
+
             with open(history_file, 'w') as f:
                 json.dump(history, f, indent=2)
-                
+
         except Exception as e:
             logger.error(f"Erreur lors de la sauvegarde de l'historique: {str(e)}")
     

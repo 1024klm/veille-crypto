@@ -101,7 +101,7 @@ class ExternalSourcesFetcher:
         """Récupère les tendances Google pour les mots-clés configurés."""
         try:
             pytrends = TrendReq(hl=os.getenv('GOOGLE_TRENDS_GEO', 'FR'))
-            
+
             # Construction de la requête
             timeframe = os.getenv('GOOGLE_TRENDS_TIMEFRAME', 'now 7-d')
             pytrends.build_payload(
@@ -109,20 +109,31 @@ class ExternalSourcesFetcher:
                 timeframe=timeframe,
                 geo=os.getenv('GOOGLE_TRENDS_GEO', 'FR')
             )
-            
+
             # Récupération des données
             interest_over_time = pytrends.interest_over_time()
-            
+
+            # Conversion des données avec gestion des Timestamps
+            trends_dict = {}
+            if not interest_over_time.empty:
+                # Conversion du DataFrame en dict avec des clés string (ISO format)
+                for column in interest_over_time.columns:
+                    if column != 'isPartial':
+                        trends_dict[column] = {
+                            ts.isoformat() if hasattr(ts, 'isoformat') else str(ts): int(val)
+                            for ts, val in interest_over_time[column].items()
+                        }
+
             # Normalisation des données
             trends_data = {
                 'source': 'google_trends',
                 'timestamp': datetime.now(timezone.utc).isoformat(),
                 'keywords': self.trend_keywords,
-                'data': interest_over_time.to_dict() if not interest_over_time.empty else {}
+                'data': trends_dict
             }
-            
+
             return trends_data
-            
+
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des tendances Google: {str(e)}")
             return {
